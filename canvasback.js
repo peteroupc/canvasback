@@ -146,6 +146,7 @@ CanvasBackground.prototype.setColor=function(color){
  this.drawBack();
 }
 CanvasBackground.prototype.drawBack=function(){
+ document.body.style.backgroundColor=this.constructor.hls2hex(this.hls);
  this.context.fillStyle=this.constructor.hls2hex(this.hls);
  this.context.fillRect(0,0,this.width,this.height);
 }
