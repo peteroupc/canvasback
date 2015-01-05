@@ -4,9 +4,11 @@
 function CanvasBackground(color){
   "use strict";
   color=color||"#ff0000";
+  this.width=1000;
+  this.height=1000;
   var canvas=$("<canvas>")
-   .attr("width","1000")
-   .attr("height","1000")
+   .attr("width",this.width+"")
+   .attr("height",this.height+"")
    .css({"maxWidth":"100%",
           "left":"0px",
           "zIndex":-1,
@@ -145,14 +147,14 @@ CanvasBackground.prototype.setColor=function(color){
 }
 CanvasBackground.prototype.drawBack=function(){
  this.context.fillStyle=this.constructor.hls2hex(this.hls);
- this.context.fillRect(0,0,1000,1000);
+ this.context.fillRect(0,0,this.width,this.height);
 }
 CanvasBackground.prototype.drawOne=function(){
  var newhls=this.constructor.varyColor(this.hls);
  this.context.fillStyle=this.constructor.hls2hex(newhls);
  this.context.fillRect(
-   this.constructor.rand(1000),
-   this.constructor.rand(1000),
+   this.constructor.rand(this.width),
+   this.constructor.rand(this.height),
    32+this.constructor.rand(200),
    32+this.constructor.rand(200));
 };
