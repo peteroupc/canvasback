@@ -141,6 +141,7 @@ CanvasBackground.prototype.setColor=function(color){
  if(!rgb)throw new Error("invalid color parameter");
  this.color=rgb;
  this.hls=this.constructor.rgb2hls(rgb);
+ this.drawBack();
 }
 CanvasBackground.prototype.drawBack=function(){
  this.context.fillStyle=this.constructor.hls2hex(this.hls);
@@ -158,7 +159,6 @@ CanvasBackground.prototype.drawOne=function(){
 CanvasBackground.colorBackground=function(color){
 $(document).ready(function(){
  var canvas=new CanvasBackground(color);
- canvas.drawBack();
  window.setInterval(function(){
    canvas.drawOne();
  },100);
