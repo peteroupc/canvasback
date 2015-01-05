@@ -153,8 +153,8 @@ CanvasBackground.prototype.drawOne=function(){
  var newhls=this.constructor.varyColor(this.hls);
  this.context.fillStyle=this.constructor.hls2hex(newhls);
  this.context.fillRect(
-   this.constructor.rand(this.width),
-   this.constructor.rand(this.height),
+   this.constructor.rand(this.width+30)-30,
+   this.constructor.rand(this.height+30)-30,
    32+this.constructor.rand(200),
    32+this.constructor.rand(200));
 };
