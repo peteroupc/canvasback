@@ -9,7 +9,8 @@ function CanvasBackground(color){
   var canvas=$("<canvas>")
    .attr("width",this.width+"")
    .attr("height",this.height+"")
-   .css({"maxWidth":"100%",
+   .css({"width":"100%",
+          "height":"100%",
           "left":"0px",
           "zIndex":-1,
           "top":"0px",
