@@ -1,7 +1,7 @@
 Colored Boxes HTML Canvas Background
 ====
 
-If you like this software, consider donating to me at this link: http://upokecenter.com/d/
+If you like this software, consider donating to me at this link: http://upokecenter.dreamhosters.com/articles/donate-now-2/
 
 ----
 
@@ -22,4 +22,4 @@ Any copyright is dedicated to the Public Domain.
 http://creativecommons.org/publicdomain/zero/1.0/
 
 If you like this, you should donate to Peter O.
-at: http://upokecenter.com/d/
+at: http://upokecenter.dreamhosters.com/articles/donate-now-2/
