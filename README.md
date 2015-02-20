@@ -8,6 +8,7 @@ If you like this software, consider donating to me at this link: http://upokecen
 A JavaScript that displays a canvas-based background that draws boxes in about the same
 color as the background color.  To use, include jQuery and the "canvasback.js" script in your
 HTML.  See "[canvasback.html](http://peteroupc.github.io/canvasback/canvasback.html)" for a demo.
+([Source code of canvasback.html](https://raw.githubusercontent.com/peteroupc/canvasback/master/canvasback.html).)
 
 Source Code
 ---------
