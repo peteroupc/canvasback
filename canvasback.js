@@ -2,6 +2,16 @@
     Public domain dedication: http://creativecommons.org/publicdomain/zero/1.0/  */
 
 var GLUtil={
+clearColor:function(context,r,g,b,a){
+  context.clearColor(r,g,b, (typeof a=="undefined") ? 1.0 : a);
+  context.clear(context.COLOR_BUFFER_BIT);
+},
+renderShapes:function(context,shapes,position,color,matrix){
+  for(var i=0;i<shapes.length;i++){
+   shapes[i].render(position,color,matrix);
+  }
+  context.flush();
+},
 createVerticesAndFaces:function(context, vertices, faces, dimensions){
  var vertbuffer=context.createBuffer();
  var facebuffer=context.createBuffer();
@@ -9,10 +19,17 @@ createVerticesAndFaces:function(context, vertices, faces, dimensions){
  context.bindBuffer(context.ELEMENT_ARRAY_BUFFER, facebuffer);
  context.bufferData(context.ARRAY_BUFFER, 
    new Float32Array(vertices), context.STATIC_DRAW);
- context.bufferData(context.ELEMENT_ARRAY_BUFFER, 
-   new Uint16Array(faces), context.STATIC_DRAW);
+ var type=context.UNSIGNED_SHORT;
+ if(vertices.length>=65536 || faces.length>=65536){
+  type=context.UNSIGNED_INT;
+  context.bufferData(context.ELEMENT_ARRAY_BUFFER, 
+    new Uint32Array(faces), context.STATIC_DRAW);
+ } else {
+  context.bufferData(context.ELEMENT_ARRAY_BUFFER, 
+    new Uint16Array(faces), context.STATIC_DRAW);
+ }
  return {verts:vertbuffer, faces:facebuffer, dimensions: dimensions,
-   facesLength: faces.length};
+   facesLength: faces.length, type:type};
 },
 compileShaders:function(context, vertexShader, fragmentShader){
   function compileShader(context, kind, text){
@@ -113,6 +130,16 @@ mat[12],mat[13],mat[14],mat[15]]
 }
 };
 
+function callRequestFrame(func){
+ var raf=window.requestAnimationFrame || window.mozRequestAnimationFrame ||
+    window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
+ if(raf){
+  raf(func);
+ } else {
+  window.setTimeout(func,17);
+ }
+}
+
 function Shape(context,vertfaces,format,scale){
   this.vertfaces=vertfaces;
   this.context=context;
@@ -171,7 +198,7 @@ Shape.prototype.render=function(attribPosition, attribColor, uniformMatrix){
   this.context.bindBuffer(this.context.ELEMENT_ARRAY_BUFFER, this.vertfaces.faces);
   this.context.drawElements(this.context.TRIANGLES, 
     this.vertfaces.facesLength,
-    this.context.UNSIGNED_SHORT, 0);
+    this.vertfaces.type, 0);
 }
 
 function createCube(context,color,radius){
@@ -227,8 +254,7 @@ function CanvasBackground(color){
   if(!this.context){
    // Fallback draws simple boxes
    this.use3d=false;
-   this.context=canvasElement.getContext("2d");  
-   console.log(this.context)
+   this.context=canvasElement.getContext("2d"); 
   }
   this.shapes=[]
   this.setColor(color);
@@ -360,15 +386,9 @@ CanvasBackground.prototype.setColor=function(color){
  this.drawBack();
 }
 CanvasBackground.prototype.animate=function(){
-  this.context.viewport(0,0,this.width,this.height);
-  this.context.clear(this.context.COLOR_BUFFER_BIT);
-  for(var i=0;i<this.shapes.length;i++){
-   this.shapes[i].render(this.position, this.attribColor, this.projection);
-  }
-  this.context.flush();
-  var raf = window.requestAnimationFrame || window.mozRequestAnimationFrame ||
-    window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
-  raf(this.animate.bind(this));
+  GLUtil.renderShapes(this.context,
+   this.shapes,this.position, this.attribColor, this.projection);
+  callRequestFrame(this.animate.bind(this));
 }
 CanvasBackground.prototype.drawBack=function(){
  document.body.style.backgroundColor=this.constructor.hls2hex(this.hls);
@@ -390,7 +410,7 @@ colorVar=color;\
   this.position=actives["position"];
   this.projection=actives["matrix"]
   this.attribColor=actives["color"];
-  this.context.clearColor(rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0,1.0);
+  GLUtil.clearColor(this.context,rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0);
   this.animate();
  } else {
   this.context.fillStyle=this.constructor.hls2hex(this.hls);
