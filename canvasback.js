@@ -1,6 +1,200 @@
 /* This file is in the public domain. Peter O., 2015. http://upokecenter.dreamhosters.com
     Public domain dedication: http://creativecommons.org/publicdomain/zero/1.0/  */
-    
+
+var GLUtil={
+createVerticesAndFaces:function(context, vertices, faces, dimensions){
+ var vertbuffer=context.createBuffer();
+ var facebuffer=context.createBuffer();
+ context.bindBuffer(context.ARRAY_BUFFER, vertbuffer);
+ context.bindBuffer(context.ELEMENT_ARRAY_BUFFER, facebuffer);
+ context.bufferData(context.ARRAY_BUFFER, 
+   new Float32Array(vertices), context.STATIC_DRAW);
+ context.bufferData(context.ELEMENT_ARRAY_BUFFER, 
+   new Uint16Array(faces), context.STATIC_DRAW);
+ return {verts:vertbuffer, faces:facebuffer, dimensions: dimensions,
+   facesLength: faces.length};
+},
+compileShaders:function(context, vertexShader, fragmentShader){
+  function compileShader(context, kind, text){
+    var shader=context.createShader(kind);
+    context.shaderSource(shader, text);
+    context.compileShader(shader);
+    if (!context.getShaderParameter(shader, context.COMPILE_STATUS)) {
+	  	console.log((kind==context.VERTEX_SHADER ? "vertex: " : "fragment: ")+
+        context.getShaderInfoLog(shader));
+	  	return null;
+	  }
+   return shader;
+  }
+  var vs=(!vertexShader || vertexShader.length==0) ? null : 
+    compileShader(context,context.VERTEX_SHADER,vertexShader);
+  var fs=(!fragmentShader || fragmentShader.length==0) ? null : 
+    compileShader(context,context.FRAGMENT_SHADER,fragmentShader);
+  var program = context.createProgram();
+  if(vs!==null)context.attachShader(program, vs);
+  if(fs!==null)context.attachShader(program, fs);
+ 	context.linkProgram(program);
+  if (!context.getProgramParameter(program, context.LINK_STATUS)) {
+		console.log("link: "+context.getProgramInfoLog(program));
+		return null;
+	}
+  return program;
+},
+getAttrib:function(context,program,name){
+ var a=context.getAttribLocation(program,name);
+ if(a!==null)context.enableVertexAttribArray(a);
+ return a;
+},
+getUniform:function(context,program,name){
+ var a=context.getUniformLocation(program,name);
+ return a;
+},
+mat4identity:function(){
+ return [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]
+},
+vec3normalize:function(v){
+	var len = Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+	return [v[0]/len, v[1]/len, v[2]/len];
+},
+mat4scaleVec3:function(mat,v3){
+  var scaleX=v3[0];
+  var scaleY=v3[1];
+  var scaleZ=v3[2];
+	return [
+		mat[0]*scaleX, mat[1]*scaleY, mat[2]*scaleZ, mat[3],
+		mat[4]*scaleX, mat[5]*scaleY, mat[6]*scaleZ, mat[7],
+		mat[8]*scaleX, mat[9]*scaleY, mat[10]*scaleZ, mat[11],
+		mat[12]*scaleX, mat[13]*scaleY, mat[14]*scaleZ, mat[15]
+	];
+},
+mat4rotVecDegrees:function(mat, angle, v){
+v=GLUtil.vec3normalize(v);
+angle=angle*Math.PI/180;
+var c = Math.cos(angle);
+var s = Math.sin(angle);
+var tc=1-c;
+var v0tc=v[0]*tc;
+var v1tc=v[1]*tc;
+var v2tc=v[2]*tc;
+var v0s=v[0]*s;
+var v1s=v[1]*s;
+var v2s=v[2]*s;
+var x0=v[0]*v0tc+c,
+x1=v[0]*v1tc-v2s,	
+x2=v[0]*v2tc+v1s,
+x3=v[1]*v0tc+v2s,	
+x4=v[1]*v1tc+c,		
+x5=v[1]*v2tc-v0s,	
+x6=v[2]*v0tc-v1s,	
+x7=v[2]*v1tc+v0s,	
+x8=v[2]*v2tc+c;
+return [
+mat[0]*x0+mat[4]*x1+mat[8]*x2,
+mat[1]*x0+mat[5]*x1+mat[9]*x2,
+mat[2]*x0+mat[6]*x1+mat[10]*x2,
+mat[3]*x0+mat[7]*x1+mat[11]*x2,
+mat[0]*x3+mat[4]*x4+mat[8]*x5,
+mat[1]*x3+mat[5]*x4+mat[9]*x5,
+mat[2]*x3+mat[6]*x4+mat[10]*x5,
+mat[3]*x3+mat[7]*x4+mat[11]*x5,
+mat[0]*x6+mat[4]*x7+mat[8]*x8,
+mat[1]*x6+mat[5]*x7+mat[9]*x8,
+mat[2]*x6+mat[6]*x7+mat[10]*x8,
+mat[3]*x6+mat[7]*x7+mat[11]*x8,
+mat[12],mat[13],mat[14],mat[15]]
+}
+};
+
+function Shape(context,vertfaces,format,scale){
+  this.vertfaces=vertfaces;
+  this.context=context;
+  this.format=format;
+  this.scale=scale;
+  this.angle=0;
+  this.position=[0,0,0];
+  this.vector=[0,0,0];
+  this.calcMatrix();
+}
+Shape.VEC2DCOLOR=0;
+Shape.VEC3DCOLOR=1;
+Shape.VEC2D=2;
+Shape.VEC3D=3;
+Shape.prototype.calcMatrix=function(){
+  this.matrix=GLUtil.mat4identity();
+  this.matrix=GLUtil.mat4scaleVec3(this.matrix,[this.scale,this.scale,this.scale]);
+  this.matrix=GLUtil.mat4rotVecDegrees(this.matrix,this.angle,this.vector);
+  this.matrix[12]+=this.position[0];
+  this.matrix[13]+=this.position[1];
+  this.matrix[14]+=this.position[2];
+}
+Shape.prototype.setPosition=function(x,y,z){
+  this.position=[x,y,z];
+  this.calcMatrix();
+  return this;
+}
+Shape.prototype.setRotation=function(angle, vector){
+  this.angle=angle;
+  this.vector=vector;
+  this.calcMatrix();
+  return this;
+}
+Shape.prototype.render=function(attribPosition, attribColor, uniformMatrix){
+  this.context.bindBuffer(this.context.ARRAY_BUFFER, this.vertfaces.verts);
+  if(this.format==this.constructor.VEC2DCOLOR){
+   this.context.vertexAttribPointer(attribPosition, 2, 
+     this.context.FLOAT, false, 5*4, 0);
+   this.context.vertexAttribPointer(attribColor, 3, 
+     this.context.FLOAT, false, 5*4, 2*4);  
+  } else if(this.format==this.constructor.VEC3DCOLOR){
+  this.context.vertexAttribPointer(attribPosition, 3, 
+    this.context.FLOAT, false, 6*4, 0);
+  this.context.vertexAttribPointer(attribColor, 3, 
+    this.context.FLOAT, false, 6*4, 3*4);
+  } else if(this.format==this.constructor.VEC2D){
+   this.context.vertexAttribPointer(attribPosition, 2, 
+     this.context.FLOAT, false, 2*4, 0);
+  } else if(this.format==this.constructor.VEC3D){
+   this.context.vertexAttribPointer(attribPosition, 3, 
+     this.context.FLOAT, false, 3*4, 0);  
+  }
+  if(uniformMatrix!==null){
+   this.context.uniformMatrix4fv(uniformMatrix,false,this.matrix);  
+  }
+  this.context.bindBuffer(this.context.ELEMENT_ARRAY_BUFFER, this.vertfaces.faces);
+  this.context.drawElements(this.context.TRIANGLES, 
+    this.vertfaces.facesLength,
+    this.context.UNSIGNED_SHORT, 0);
+}
+
+function createCube(context,color,radius){
+ var r=color[0];
+ var g=color[1];
+ var b=color[2];
+ var vertices=[
+  -1,-1,1,r,g,b,
+  1,-1,1,r,g,b,
+  1,1,1,r,g,b,
+  -1,1,1,r,g,b,
+  -1,-1,-1,r,g,b,
+  1,-1,-1,r,g,b,
+  1,1,-1,r,g,b,
+  -1,1,-1,r,g,b
+ ]
+ var faces=[
+  0,1,2,2,3,0,
+  1,5,6,6,2,1,
+  7,6,5,5,4,7,
+  4,0,3,3,7,4,
+  4,5,1,1,0,4,
+  3,2,6,6,7,3
+ ]
+ return new Shape(
+   context,
+   GLUtil.createVerticesAndFaces(context,vertices,faces,2),
+   Shape.VEC3DCOLOR,
+   radius);
+}
+
 function CanvasBackground(color){
   "use strict";
   color=color||"#ff0000";
@@ -16,8 +210,19 @@ function CanvasBackground(color){
           "top":"0px",
          "position":"fixed"});
   $("body").append(canvas);
+  this.use3d=true;
   this.canvas=canvas;
-  this.context=canvas.get(0).getContext("2d");
+  var canvasElement=canvas.get(0);
+  this.context=canvasElement.getContext("webgl", {antialias: true});
+  if(!this.context)
+   this.context=canvasElement.getContext("experimental-webgl", {antialias: true});
+  if(!this.context){
+   // Fallback draws simple boxes
+   this.use3d=false;
+   this.context=canvasElement.getContext("2d");  
+   console.log(this.context)
+  }
+  this.shapes=[]
   this.setColor(color);
 }
 CanvasBackground.varyColor=function(n){
@@ -146,19 +351,74 @@ CanvasBackground.prototype.setColor=function(color){
  this.hls=this.constructor.rgb2hls(rgb);
  this.drawBack();
 }
+CanvasBackground.prototype.animate=function(){
+  this.context.viewport(0,0,this.width,this.height);
+  this.context.clear(this.context.COLOR_BUFFER_BIT);
+  for(var i=0;i<this.shapes.length;i++){
+   this.shapes[i].render(this.position, this.attribColor, this.projection);
+  }
+  this.context.flush();
+  var raf = window.requestAnimationFrame || window.mozRequestAnimationFrame ||
+    window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
+  raf(this.animate.bind(this));
+}
 CanvasBackground.prototype.drawBack=function(){
  document.body.style.backgroundColor=this.constructor.hls2hex(this.hls);
- this.context.fillStyle=this.constructor.hls2hex(this.hls);
- this.context.fillRect(0,0,this.width,this.height);
+ if(this.use3d){
+  var rgb=this.constructor.hls2rgb(this.hls);
+  var vertex="\
+attribute vec3 position;\
+uniform mat4 matrix;\
+attribute vec3 color;\
+varying vec3 colorVar;\
+void main(){\
+gl_Position=matrix*vec4(position,1.0);\
+colorVar=color;\
+}"
+  var fragment="precision mediump float;varying vec3 colorVar;"+
+   "void main(){ gl_FragColor=vec4(colorVar,1.0); }"
+  var program=GLUtil.compileShaders(this.context,vertex,fragment);
+  this.context.useProgram(program);
+  this.position=GLUtil.getAttrib(this.context,program,"position");
+  this.projection=GLUtil.getUniform(this.context,program,"matrix");
+  this.attribColor=GLUtil.getAttrib(this.context,program,"color");
+  this.context.clearColor(rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0,1.0);
+  this.animate();
+ } else {
+  this.context.fillStyle=this.constructor.hls2hex(this.hls);
+  this.context.fillRect(0,0,this.width,this.height); 
+ }
 }
 CanvasBackground.prototype.drawOne=function(){
  var newhls=this.constructor.varyColor(this.hls);
- this.context.fillStyle=this.constructor.hls2hex(newhls);
- this.context.fillRect(
-   this.constructor.rand(this.width+30)-30,
-   this.constructor.rand(this.height+30)-30,
-   32+this.constructor.rand(200),
-   32+this.constructor.rand(200));
+ if(this.use3d){
+  var x=(this.constructor.rand(2000)/1000.0)-1.0;
+  var y=(this.constructor.rand(2000)/1000.0)-1.0;
+  var z=0.0;
+  var radius=(16+this.constructor.rand(100))/1000.0;
+  var rgb=this.constructor.hls2rgb(newhls);
+  rgb[0]/=255
+  rgb[1]/=255
+  rgb[2]/=255
+   var shape=createCube(this.context,rgb,radius);
+   var angle=this.constructor.rand(160);
+   var vector=[
+     (this.constructor.rand(60)-30)/30.0,
+     (this.constructor.rand(60)-30)/30.0,0]
+   shape.setRotation(angle,vector);
+   shape.setPosition(x,y,z);
+   // TODO: When there are many shapes, copy the canvas's
+   // contents to a temporary buffer, clear the shapes, and
+   // copy the contents back
+   this.shapes.push(shape);
+ } else {
+  var rect=[this.constructor.rand(this.width+30)-30,
+    this.constructor.rand(this.height+30)-30,
+    32+this.constructor.rand(200),
+    32+this.constructor.rand(200)];
+  this.context.fillStyle=this.constructor.hls2hex(newhls);
+  this.context.fillRect(rect[0],rect[1],rect[2],rect[3]);
+ }
 };
 CanvasBackground.colorBackground=function(color){
 $(document).ready(function(){
