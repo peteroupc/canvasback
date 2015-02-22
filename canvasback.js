@@ -38,16 +38,24 @@ compileShaders:function(context, vertexShader, fragmentShader){
 		console.log("link: "+context.getProgramInfoLog(program));
 		return null;
 	}
+  context.useProgram(program);
   return program;
 },
-getAttrib:function(context,program,name){
- var a=context.getAttribLocation(program,name);
- if(a!==null)context.enableVertexAttribArray(a);
- return a;
-},
-getUniform:function(context,program,name){
- var a=context.getUniformLocation(program,name);
- return a;
+getActives:function(context,program){
+ var count= context.getProgramParameter(program, context.ACTIVE_ATTRIBUTES);
+ var name=null;
+ var ret={}
+ for (var i = 0; i < count; ++i) {
+  name=context.getActiveAttrib(program, i).name;
+  ret[name]=context.getAttribLocation(program, name);
+  if(ret[name]!==null)context.enableVertexAttribArray(ret[name]);
+ }
+ count = context.getProgramParameter(program, context.ACTIVE_UNIFORMS);
+ for (var i = 0; i < count; ++i) {
+  name = context.getActiveUniform(program, i).name;
+  ret[name] = context.getUniformLocation(program, name);
+ }
+ return ret;
 },
 mat4identity:function(){
  return [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]
@@ -378,10 +386,10 @@ colorVar=color;\
   var fragment="precision mediump float;varying vec3 colorVar;"+
    "void main(){ gl_FragColor=vec4(colorVar,1.0); }"
   var program=GLUtil.compileShaders(this.context,vertex,fragment);
-  this.context.useProgram(program);
-  this.position=GLUtil.getAttrib(this.context,program,"position");
-  this.projection=GLUtil.getUniform(this.context,program,"matrix");
-  this.attribColor=GLUtil.getAttrib(this.context,program,"color");
+  var actives=GLUtil.getActives(this.context,program);
+  this.position=actives["position"];
+  this.projection=actives["matrix"]
+  this.attribColor=actives["color"];
   this.context.clearColor(rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0,1.0);
   this.animate();
  } else {
