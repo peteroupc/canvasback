@@ -1,5 +1,11 @@
-/* This file is in the public domain. Peter O., 2015. http://upokecenter.dreamhosters.com
-    Public domain dedication: http://creativecommons.org/publicdomain/zero/1.0/  */
+/*
+Written by Peter O. in 2015. 
+
+Any copyright is dedicated to the Public Domain.
+http://creativecommons.org/publicdomain/zero/1.0/
+If you like this, you should donate to Peter O.
+at: http://upokecenter.dreamhosters.com/articles/donate-now-2/ 
+*/
 
 var GLUtil={
 initColorAndDepth:function(context,r,g,b,a,depth,depthFunc){
