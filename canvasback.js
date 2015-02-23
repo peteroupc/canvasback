@@ -2,17 +2,20 @@
     Public domain dedication: http://creativecommons.org/publicdomain/zero/1.0/  */
 
 var GLUtil={
-clearColor:function(context,r,g,b,a){
+initColorAndDepth:function(context,r,g,b,a,depth,depthFunc){
+  context.enable(context.DEPTH_TEST);
+  context.depthFunc(depthFunc);
   context.clearColor(r,g,b, (typeof a=="undefined") ? 1.0 : a);
-  context.clear(context.COLOR_BUFFER_BIT);
+  context.clearDepth(depth);
+  context.clear(context.COLOR_BUFFER_BIT | context.DEPTH_BIT);
 },
-renderShapes:function(context,shapes,position,color,matrix){
+renderShapes:function(context,shapes,position,color,normal,matrix){
   for(var i=0;i<shapes.length;i++){
-   shapes[i].render(position,color,matrix);
+   shapes[i].render(position,color,normal,matrix);
   }
   context.flush();
 },
-createVerticesAndFaces:function(context, vertices, faces, dimensions){
+createVerticesAndFaces:function(context, vertices, faces){
  var vertbuffer=context.createBuffer();
  var facebuffer=context.createBuffer();
  context.bindBuffer(context.ARRAY_BUFFER, vertbuffer);
@@ -28,7 +31,7 @@ createVerticesAndFaces:function(context, vertices, faces, dimensions){
   context.bufferData(context.ELEMENT_ARRAY_BUFFER, 
     new Uint16Array(faces), context.STATIC_DRAW);
  }
- return {verts:vertbuffer, faces:facebuffer, dimensions: dimensions,
+ return {verts:vertbuffer, faces:facebuffer,
    facesLength: faces.length, type:type};
 },
 compileShaders:function(context, vertexShader, fragmentShader){
@@ -59,18 +62,20 @@ compileShaders:function(context, vertexShader, fragmentShader){
   return program;
 },
 getActives:function(context,program){
- var count= context.getProgramParameter(program, context.ACTIVE_ATTRIBUTES);
  var name=null;
  var ret={}
- for (var i = 0; i < count; ++i) {
-  name=context.getActiveAttrib(program, i).name;
-  ret[name]=context.getAttribLocation(program, name);
-  if(ret[name]!==null)context.enableVertexAttribArray(ret[name]);
- }
- count = context.getProgramParameter(program, context.ACTIVE_UNIFORMS);
- for (var i = 0; i < count; ++i) {
-  name = context.getActiveUniform(program, i).name;
-  ret[name] = context.getUniformLocation(program, name);
+ if(program!=null){
+  var count= context.getProgramParameter(program, context.ACTIVE_ATTRIBUTES);
+  for (var i = 0; i < count; ++i) {
+   name=context.getActiveAttrib(program, i).name;
+   ret[name]=context.getAttribLocation(program, name);
+   if(ret[name]!==null)context.enableVertexAttribArray(ret[name]);
+  }
+  count = context.getProgramParameter(program, context.ACTIVE_UNIFORMS);
+  for (var i = 0; i < count; ++i) {
+   name = context.getActiveUniform(program, i).name;
+   ret[name] = context.getUniformLocation(program, name);
+  }
  }
  return ret;
 },
@@ -154,6 +159,7 @@ Shape.VEC2DCOLOR=0;
 Shape.VEC3DCOLOR=1;
 Shape.VEC2D=2;
 Shape.VEC3D=3;
+Shape.VEC3DNORMALCOLOR=4;
 Shape.prototype.calcMatrix=function(){
   this.matrix=GLUtil.mat4identity();
   this.matrix=GLUtil.mat4scaleVec3(this.matrix,[this.scale,this.scale,this.scale]);
@@ -173,7 +179,7 @@ Shape.prototype.setRotation=function(angle, vector){
   this.calcMatrix();
   return this;
 }
-Shape.prototype.render=function(attribPosition, attribColor, uniformMatrix){
+Shape.prototype.render=function(attribPosition, attribColor, attribNormal, uniformMatrix){
   this.context.bindBuffer(this.context.ARRAY_BUFFER, this.vertfaces.verts);
   if(this.format==this.constructor.VEC2DCOLOR){
    this.context.vertexAttribPointer(attribPosition, 2, 
@@ -185,6 +191,15 @@ Shape.prototype.render=function(attribPosition, attribColor, uniformMatrix){
     this.context.FLOAT, false, 6*4, 0);
   this.context.vertexAttribPointer(attribColor, 3, 
     this.context.FLOAT, false, 6*4, 3*4);
+  } else if(this.format==this.constructor.VEC3DNORMALCOLOR){
+  this.context.vertexAttribPointer(attribPosition, 3, 
+    this.context.FLOAT, false, 9*4, 0);
+  if(attribNormal!==null && attribNormal>=0){
+   this.context.vertexAttribPointer(attribNormal, 3, 
+     this.context.FLOAT, false, 9*4, 3*4);
+  }
+  this.context.vertexAttribPointer(attribColor, 3, 
+    this.context.FLOAT, false, 9*4, 6*4);
   } else if(this.format==this.constructor.VEC2D){
    this.context.vertexAttribPointer(attribPosition, 2, 
      this.context.FLOAT, false, 2*4, 0);
@@ -205,28 +220,46 @@ function createCube(context,color,radius){
  var r=color[0];
  var g=color[1];
  var b=color[2];
+ // Position X, Y, Z, normal NX, NY, NZ, color R, G, B
  var vertices=[
-  -1,-1,1,r,g,b,
-  1,-1,1,r,g,b,
-  1,1,1,r,g,b,
-  -1,1,1,r,g,b,
-  -1,-1,-1,r,g,b,
-  1,-1,-1,r,g,b,
-  1,1,-1,r,g,b,
-  -1,1,-1,r,g,b
+  -1.0, -1.0, 1.0, -1, 0, 0, r, g, b,
+ -1.0, 1.0, 1.0, -1, 0, 0, r, g, b,
+ -1.0, 1.0, -1.0, -1, 0, 0, r, g, b,
+ -1.0, -1.0, -1.0, -1, 0, 0, r, g, b,
+ 1.0, -1.0, -1.0, 1, 0, 0, r, g, b,
+ 1.0, 1.0, -1.0, 1, 0, 0, r, g, b,
+ 1.0, 1.0, 1.0, 1, 0, 0, r, g, b,
+ 1.0, -1.0, 1.0, 1, 0, 0, r, g, b,
+ 1.0, -1.0, -1.0, 0, -1, 0, r, g, b,
+ 1.0, -1.0, 1.0, 0, -1, 0, r, g, b,
+ -1.0, -1.0, 1.0, 0, -1, 0, r, g, b,
+ -1.0, -1.0, -1.0, 0, -1, 0, r, g, b,
+ 1.0, 1.0, 1.0, 0, 1, 0, r, g, b,
+ 1.0, 1.0, -1.0, 0, 1, 0, r, g, b,
+ -1.0, 1.0, -1.0, 0, 1, 0, r, g, b,
+ -1.0, 1.0, 1.0, 0, 1, 0, r, g, b,
+ -1.0, -1.0, -1.0, 0, 0, -1, r, g, b,
+ -1.0, 1.0, -1.0, 0, 0, -1, r, g, b,
+ 1.0, 1.0, -1.0, 0, 0, -1, r, g, b,
+ 1.0, -1.0, -1.0, 0, 0, -1, r, g, b,
+ 1.0, -1.0, 1.0, 0, 0, 1, r, g, b,
+ 1.0, 1.0, 1.0, 0, 0, 1, r, g, b,
+ -1.0, 1.0, 1.0, 0, 0, 1, r, g, b,
+ -1.0, -1.0, 1.0, 0, 0, 1, r, g, b
  ]
  var faces=[
-  0,1,2,2,3,0,
-  1,5,6,6,2,1,
-  7,6,5,5,4,7,
-  4,0,3,3,7,4,
-  4,5,1,1,0,4,
-  3,2,6,6,7,3
+  0, 1, 2, 0, 2, 3, 
+  4, 5, 6, 4, 6, 7, 
+  8, 9, 10, 8, 10, 11, 
+  12, 13, 14, 12, 14, 
+  15, 16, 17, 18, 16, 
+  18, 19, 20, 21, 22, 
+  20, 22, 23
  ]
  return new Shape(
    context,
-   GLUtil.createVerticesAndFaces(context,vertices,faces,2),
-   Shape.VEC3DCOLOR,
+   GLUtil.createVerticesAndFaces(context,vertices,faces),
+   Shape.VEC3DNORMALCOLOR,
    radius);
 }
 
@@ -385,44 +418,87 @@ CanvasBackground.prototype.setColor=function(color){
  this.hls=this.constructor.rgb2hls(rgb);
  this.drawBack();
 }
-CanvasBackground.prototype.animate=function(){
-  GLUtil.renderShapes(this.context,
-   this.shapes,this.position, this.attribColor, this.projection);
-  callRequestFrame(this.animate.bind(this));
-}
 CanvasBackground.prototype.drawBack=function(){
  document.body.style.backgroundColor=this.constructor.hls2hex(this.hls);
  if(this.use3d){
   var rgb=this.constructor.hls2rgb(this.hls);
   var vertex="\
 attribute vec3 position;\
-uniform mat4 matrix;\
+attribute vec3 normal;\
 attribute vec3 color;\
+uniform mat4 matrix;/* currently used only for the model transform */\
 varying vec3 colorVar;\
+varying vec3 normalVar;\
+varying vec3 viewPositionVar;\
 void main(){\
-gl_Position=matrix*vec4(position,1.0);\
+vec4 positionVec4=vec4(position,1.0);\
 colorVar=color;\
+gl_Position=matrix*positionVec4;\
+viewPositionVar=vec3(gl_Position);\
+normalVar=vec3(matrix*vec4(normal,0.0));\
 }"
-  var fragment="precision mediump float;varying vec3 colorVar;"+
-   "void main(){ gl_FragColor=vec4(colorVar,1.0); }"
+  var fragment="\
+precision mediump float;\
+uniform vec3 sa;\
+uniform vec3 sd;\
+uniform vec3 ss;\
+uniform vec3 sdir;\
+uniform vec3 ma;\
+uniform vec3 md;\
+uniform vec3 ms;\
+uniform float mshin;\
+varying vec3 colorVar;\
+varying vec3 normalVar;\
+varying vec3 viewPositionVar;\
+void main(){\
+ vec3 phong=(sa*ma)+(ss*ms*pow(max(dot(reflect(sdir,normalVar),\
+    normalize(viewPositionVar)),0.0),mshin))+(sd*md*max(dot(normalVar,sdir),0.0));\
+ gl_FragColor=vec4(phong*colorVar,1.0);\
+}"
+  var uniformValues={};
+  uniformValues["sa"]=[4,4,4];
+  uniformValues["sd"]=[2,2,2];
+  uniformValues["ss"]=[0,0,0];
+  uniformValues["sdir"]=[0,0,-1];
+  uniformValues["ma"]=[0.2,0.2,0.2];
+  uniformValues["md"]=[1,1,1];
+  uniformValues["ms"]=[1,1,1];
+  this.uniforms=uniformValues;
   var program=GLUtil.compileShaders(this.context,vertex,fragment);
   var actives=GLUtil.getActives(this.context,program);
   this.position=actives["position"];
-  this.projection=actives["matrix"]
+  this.modelMatrix=actives["matrix"]
   this.attribColor=actives["color"];
-  GLUtil.clearColor(this.context,rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0);
+  this.attribNormal=actives["normal"];
+  this.actives=actives;
+  GLUtil.initColorAndDepth(this.context,
+    rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0, 1.0, 
+    999999.0, this.context.LEQUAL);
+  for(var i in uniformValues){
+    if(uniformValues.hasOwnProperty(i)){
+      v=uniformValues[i];
+      this.context.uniform3f(actives[i], v[0],v[1],v[2]);
+    }
+  }
+  this.context.uniform1f(actives["mshin"],1.0);
   this.animate();
  } else {
   this.context.fillStyle=this.constructor.hls2hex(this.hls);
   this.context.fillRect(0,0,this.width,this.height); 
  }
 }
+CanvasBackground.prototype.animate=function(){
+  GLUtil.renderShapes(this.context,
+   this.shapes,this.position, this.attribColor, 
+   this.attribNormal, this.modelMatrix);
+  callRequestFrame(this.animate.bind(this));
+}
 CanvasBackground.prototype.drawOne=function(){
  var newhls=this.constructor.varyColor(this.hls);
  if(this.use3d){
   var x=(this.constructor.rand(2000)/1000.0)-1.0;
   var y=(this.constructor.rand(2000)/1000.0)-1.0;
-  var z=0.0;
+  var z=(this.constructor.rand(60))/60.0;
   var radius=(16+this.constructor.rand(100))/1000.0;
   var rgb=this.constructor.hls2rgb(newhls);
   rgb[0]/=255
@@ -431,8 +507,8 @@ CanvasBackground.prototype.drawOne=function(){
    var shape=createCube(this.context,rgb,radius);
    var angle=this.constructor.rand(160);
    var vector=[
-     (this.constructor.rand(60)-30)/30.0,
-     (this.constructor.rand(60)-30)/30.0,0]
+     (this.constructor.rand(60))/30.0,
+     (this.constructor.rand(60))/30.0,0]
    shape.setRotation(angle,vector);
    shape.setPosition(x,y,z);
    // TODO: When there are many shapes, copy the canvas's
