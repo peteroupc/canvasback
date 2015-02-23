@@ -13,8 +13,6 @@ To use, include jQuery and the "canvasback.js" script in your
 HTML.  See "[canvasback.html](http://peteroupc.github.io/canvasback/canvasback.html)" for a demo.
 ([Source code of canvasback.html](https://raw.githubusercontent.com/peteroupc/canvasback/master/canvasback.html).)
 
-
-
 Source Code
 ---------
 Source code is available in the [project page](https://github.com/peteroupc/canvasback).

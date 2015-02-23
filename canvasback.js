@@ -1,10 +1,10 @@
 /*
-Written by Peter O. in 2015. 
+Written by Peter O. in 2015.
 
 Any copyright is dedicated to the Public Domain.
 http://creativecommons.org/publicdomain/zero/1.0/
 If you like this, you should donate to Peter O.
-at: http://upokecenter.dreamhosters.com/articles/donate-now-2/ 
+at: http://upokecenter.dreamhosters.com/articles/donate-now-2/
 */
 
 var GLUtil={
@@ -26,15 +26,15 @@ createVerticesAndFaces:function(context, vertices, faces){
  var facebuffer=context.createBuffer();
  context.bindBuffer(context.ARRAY_BUFFER, vertbuffer);
  context.bindBuffer(context.ELEMENT_ARRAY_BUFFER, facebuffer);
- context.bufferData(context.ARRAY_BUFFER, 
+ context.bufferData(context.ARRAY_BUFFER,
    new Float32Array(vertices), context.STATIC_DRAW);
  var type=context.UNSIGNED_SHORT;
  if(vertices.length>=65536 || faces.length>=65536){
   type=context.UNSIGNED_INT;
-  context.bufferData(context.ELEMENT_ARRAY_BUFFER, 
+  context.bufferData(context.ELEMENT_ARRAY_BUFFER,
     new Uint32Array(faces), context.STATIC_DRAW);
  } else {
-  context.bufferData(context.ELEMENT_ARRAY_BUFFER, 
+  context.bufferData(context.ELEMENT_ARRAY_BUFFER,
     new Uint16Array(faces), context.STATIC_DRAW);
  }
  return {verts:vertbuffer, faces:facebuffer,
@@ -52,9 +52,9 @@ compileShaders:function(context, vertexShader, fragmentShader){
 	  }
    return shader;
   }
-  var vs=(!vertexShader || vertexShader.length==0) ? null : 
+  var vs=(!vertexShader || vertexShader.length==0) ? null :
     compileShader(context,context.VERTEX_SHADER,vertexShader);
-  var fs=(!fragmentShader || fragmentShader.length==0) ? null : 
+  var fs=(!fragmentShader || fragmentShader.length==0) ? null :
     compileShader(context,context.FRAGMENT_SHADER,fragmentShader);
   var program = context.createProgram();
   if(vs!==null)context.attachShader(program, vs);
@@ -116,13 +116,13 @@ var v0s=v[0]*s;
 var v1s=v[1]*s;
 var v2s=v[2]*s;
 var x0=v[0]*v0tc+c,
-x1=v[0]*v1tc-v2s,	
+x1=v[0]*v1tc-v2s,
 x2=v[0]*v2tc+v1s,
-x3=v[1]*v0tc+v2s,	
-x4=v[1]*v1tc+c,		
-x5=v[1]*v2tc-v0s,	
-x6=v[2]*v0tc-v1s,	
-x7=v[2]*v1tc+v0s,	
+x3=v[1]*v0tc+v2s,
+x4=v[1]*v1tc+c,
+x5=v[1]*v2tc-v0s,
+x6=v[2]*v0tc-v1s,
+x7=v[2]*v1tc+v0s,
 x8=v[2]*v2tc+c;
 return [
 mat[0]*x0+mat[4]*x1+mat[8]*x2,
@@ -188,36 +188,36 @@ Shape.prototype.setRotation=function(angle, vector){
 Shape.prototype.render=function(attribPosition, attribColor, attribNormal, uniformMatrix){
   this.context.bindBuffer(this.context.ARRAY_BUFFER, this.vertfaces.verts);
   if(this.format==this.constructor.VEC2DCOLOR){
-   this.context.vertexAttribPointer(attribPosition, 2, 
+   this.context.vertexAttribPointer(attribPosition, 2,
      this.context.FLOAT, false, 5*4, 0);
-   this.context.vertexAttribPointer(attribColor, 3, 
-     this.context.FLOAT, false, 5*4, 2*4);  
+   this.context.vertexAttribPointer(attribColor, 3,
+     this.context.FLOAT, false, 5*4, 2*4);
   } else if(this.format==this.constructor.VEC3DCOLOR){
-  this.context.vertexAttribPointer(attribPosition, 3, 
+  this.context.vertexAttribPointer(attribPosition, 3,
     this.context.FLOAT, false, 6*4, 0);
-  this.context.vertexAttribPointer(attribColor, 3, 
+  this.context.vertexAttribPointer(attribColor, 3,
     this.context.FLOAT, false, 6*4, 3*4);
   } else if(this.format==this.constructor.VEC3DNORMALCOLOR){
-  this.context.vertexAttribPointer(attribPosition, 3, 
+  this.context.vertexAttribPointer(attribPosition, 3,
     this.context.FLOAT, false, 9*4, 0);
   if(attribNormal!==null && attribNormal>=0){
-   this.context.vertexAttribPointer(attribNormal, 3, 
+   this.context.vertexAttribPointer(attribNormal, 3,
      this.context.FLOAT, false, 9*4, 3*4);
   }
-  this.context.vertexAttribPointer(attribColor, 3, 
+  this.context.vertexAttribPointer(attribColor, 3,
     this.context.FLOAT, false, 9*4, 6*4);
   } else if(this.format==this.constructor.VEC2D){
-   this.context.vertexAttribPointer(attribPosition, 2, 
+   this.context.vertexAttribPointer(attribPosition, 2,
      this.context.FLOAT, false, 2*4, 0);
   } else if(this.format==this.constructor.VEC3D){
-   this.context.vertexAttribPointer(attribPosition, 3, 
-     this.context.FLOAT, false, 3*4, 0);  
+   this.context.vertexAttribPointer(attribPosition, 3,
+     this.context.FLOAT, false, 3*4, 0);
   }
   if(uniformMatrix!==null){
-   this.context.uniformMatrix4fv(uniformMatrix,false,this.matrix);  
+   this.context.uniformMatrix4fv(uniformMatrix,false,this.matrix);
   }
   this.context.bindBuffer(this.context.ELEMENT_ARRAY_BUFFER, this.vertfaces.faces);
-  this.context.drawElements(this.context.TRIANGLES, 
+  this.context.drawElements(this.context.TRIANGLES,
     this.vertfaces.facesLength,
     this.vertfaces.type, 0);
 }
@@ -254,12 +254,12 @@ function createCube(context,color,radius){
  -1.0, -1.0, 1.0, 0, 0, 1, r, g, b
  ]
  var faces=[
-  0, 1, 2, 0, 2, 3, 
-  4, 5, 6, 4, 6, 7, 
-  8, 9, 10, 8, 10, 11, 
-  12, 13, 14, 12, 14, 
-  15, 16, 17, 18, 16, 
-  18, 19, 20, 21, 22, 
+  0, 1, 2, 0, 2, 3,
+  4, 5, 6, 4, 6, 7,
+  8, 9, 10, 8, 10, 11,
+  12, 13, 14, 12, 14,
+  15, 16, 17, 18, 16,
+  18, 19, 20, 21, 22,
   20, 22, 23
  ]
  return new Shape(
@@ -293,7 +293,7 @@ function CanvasBackground(color){
   if(!this.context){
    // Fallback draws simple boxes
    this.use3d=false;
-   this.context=canvasElement.getContext("2d"); 
+   this.context=canvasElement.getContext("2d");
   }
   this.shapes=[]
   this.setColor(color);
@@ -306,17 +306,17 @@ CanvasBackground.varyColor=function(n){
  if(newLum<=15){
   newLum=CanvasBackground.rand(30);
  } else if(newLum>255-15){
-  newLum=(255-15)+CanvasBackground.rand(30); 
+  newLum=(255-15)+CanvasBackground.rand(30);
  } else {
-  newLum=(newLum-15)+CanvasBackground.rand(30);  
+  newLum=(newLum-15)+CanvasBackground.rand(30);
  }
  var newSat=n[2];
  if(newSat<=15){
   newSat=CanvasBackground.rand(30);
  } else if(newSat>255-15){
-  newSat=(255-15)+CanvasBackground.rand(30); 
+  newSat=(255-15)+CanvasBackground.rand(30);
  } else {
-  newSat=(newSat)+CanvasBackground.rand(30);  
+  newSat=(newSat)+CanvasBackground.rand(30);
  }
  return [newHue,newLum,newSat]
 };
@@ -478,7 +478,7 @@ void main(){\
   this.attribNormal=actives["normal"];
   this.actives=actives;
   GLUtil.initColorAndDepth(this.context,
-    rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0, 1.0, 
+    rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0, 1.0,
     999999.0, this.context.LEQUAL);
   for(var i in uniformValues){
     if(uniformValues.hasOwnProperty(i)){
@@ -490,12 +490,12 @@ void main(){\
   this.animate();
  } else {
   this.context.fillStyle=this.constructor.hls2hex(this.hls);
-  this.context.fillRect(0,0,this.width,this.height); 
+  this.context.fillRect(0,0,this.width,this.height);
  }
 }
 CanvasBackground.prototype.animate=function(){
   GLUtil.renderShapes(this.context,
-   this.shapes,this.position, this.attribColor, 
+   this.shapes,this.position, this.attribColor,
    this.attribNormal, this.modelMatrix);
   callRequestFrame(this.animate.bind(this));
 }
