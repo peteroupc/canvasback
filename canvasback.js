@@ -374,7 +374,8 @@ CanvasBackground.varyColor=function(n){
  var newHue=(n[0]-7.5)+CanvasBackground.rand(15);
  if(newHue>=360)newHue=360-newHue;
  else if(newHue<0)newHue=360+newHue;
- var newLum=n[1];
+ var oldLum=n[1];
+ var newLum=oldLum;
  if(newLum<=15){
   newLum=CanvasBackground.rand(30);
  } else if(newLum>255-15){
@@ -382,13 +383,24 @@ CanvasBackground.varyColor=function(n){
  } else {
   newLum=(newLum-15)+CanvasBackground.rand(30);
  }
- var newSat=n[2];
+ var oldSat=n[2];
+ var newSat=oldSat;
  if(newSat<=15){
   newSat=CanvasBackground.rand(30);
  } else if(newSat>255-15){
   newSat=(255-15)+CanvasBackground.rand(30);
  } else {
   newSat=(newSat)+CanvasBackground.rand(30);
+ }
+ if(oldSat>0 && newLum>0 && newLum<255){
+  // Avoid all-gray color variations if original color
+  // is not grayscale
+  if(newLum<=25)
+   newLum=25;
+  if(newLum>=242)
+   newLum=242;
+  if(oldSat<=25)
+   oldSat=25;
  }
  return [newHue,newLum,newSat]
 };
