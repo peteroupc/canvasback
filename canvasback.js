@@ -21,6 +21,18 @@ renderShapes:function(context,shapes,position,color,normal,matrix){
   }
   context.flush();
 },
+setUniforms:function(context,actives,uniforms){
+  for(var i in uniforms){
+    if(uniforms.hasOwnProperty(i)){
+      v=uniforms[i];
+      if(v.length==3){
+       context.uniform3f(actives[i], v[0],v[1],v[2]);
+      } else {
+       context.uniform1f(actives[i], v[0]);      
+      }
+    }
+  }
+},
 createVerticesAndFaces:function(context, vertices, faces, format){
  var vertbuffer=context.createBuffer();
  var facebuffer=context.createBuffer();
@@ -136,12 +148,33 @@ mat4scaleVec3:function(mat,v3){
   var scaleX=v3[0];
   var scaleY=v3[1];
   var scaleZ=v3[2];
+  return ma
 	return [
 		mat[0]*scaleX, mat[1]*scaleY, mat[2]*scaleZ, mat[3],
 		mat[4]*scaleX, mat[5]*scaleY, mat[6]*scaleZ, mat[7],
 		mat[8]*scaleX, mat[9]*scaleY, mat[10]*scaleZ, mat[11],
 		mat[12]*scaleX, mat[13]*scaleY, mat[14]*scaleZ, mat[15]
 	];
+},
+mat4scaledVec3:function(v3){
+  return [v3[0],0,0,0,0,v3[1],0,0,0,0,v3[2],0,0,0,0,1]
+},
+mat4scaleVec3InPlace:function(mat,v3){
+  var scaleX=v3[0];
+  var scaleY=v3[1];
+  var scaleZ=v3[2];
+  mat[0]*=scaleX;
+  mat[4]*=scaleX;
+  mat[8]*=scaleX;
+  mat[12]*=scaleX;
+  mat[1]*=scaleY;
+  mat[5]*=scaleY;
+  mat[9]*=scaleY;
+  mat[13]*=scaleY;
+  mat[2]*=scaleZ;
+  mat[6]*=scaleZ;
+  mat[10]*=scaleZ;
+  mat[14]*=scaleZ;
 },
 mat4rotVecDegrees:function(mat, angle, v){
 v=GLUtil.vec3normalize(v);
@@ -191,6 +224,13 @@ function callRequestFrame(func){
  }
 }
 
+function BufferManager(){
+  this.currentContext=null;
+  this.currentVertFaces=null;
+}
+
+var globalBufferManager=new BufferManager();
+
 function Shape(context,vertfaces){
   this.vertfaces=vertfaces;
   this.context=context;
@@ -199,7 +239,8 @@ function Shape(context,vertfaces){
   this.position=[0,0,0];
   this.vector=[0,0,0];
   this.uniforms=[];
-  this.calcMatrix();
+  this._matrixDirty=false;
+  this.matrix=GLUtil.mat4identity();
 }
 Shape.VEC2DCOLOR=0;
 Shape.VEC3DCOLOR=1;
@@ -207,12 +248,49 @@ Shape.VEC2D=2;
 Shape.VEC3D=3;
 Shape.VEC3DNORMALCOLOR=4;
 Shape.VEC3DNORMAL=5;
+Shape.prototype._bind=function(context, vertfaces,
+  attribPosition, attribColor, attribNormal){
+  context.bindBuffer(context.ARRAY_BUFFER, vertfaces.verts);
+  context.bindBuffer(context.ELEMENT_ARRAY_BUFFER, vertfaces.faces);
+  var format=vertfaces.format;
+  if(format==Shape.VEC2DCOLOR){
+   context.vertexAttribPointer(attribPosition, 2,
+     context.FLOAT, false, 5*4, 0);
+   context.vertexAttribPointer(attribColor, 3,
+     context.FLOAT, false, 5*4, 2*4);
+  } else if(format==Shape.VEC3DCOLOR){
+  context.vertexAttribPointer(attribPosition, 3,
+    context.FLOAT, false, 6*4, 0);
+  context.vertexAttribPointer(attribColor, 3,
+    context.FLOAT, false, 6*4, 3*4);
+  } else if(format==Shape.VEC3DNORMAL){
+  context.vertexAttribPointer(attribPosition, 3,
+    context.FLOAT, false, 6*4, 0);
+  context.vertexAttribPointer(attribNormal, 3,
+    context.FLOAT, false, 6*4, 3*4);
+  } else if(format==Shape.VEC3DNORMALCOLOR){
+  context.vertexAttribPointer(attribPosition, 3,
+    context.FLOAT, false, 9*4, 0);
+  if(attribNormal!==null && attribNormal>=0){
+   context.vertexAttribPointer(attribNormal, 3,
+     context.FLOAT, false, 9*4, 3*4);
+  }
+  context.vertexAttribPointer(attribColor, 3,
+    context.FLOAT, false, 9*4, 6*4);
+  } else if(format==Shape.VEC2D){
+   context.vertexAttribPointer(attribPosition, 2,
+     context.FLOAT, false, 2*4, 0);
+  } else if(format==Shape.VEC3D){
+   context.vertexAttribPointer(attribPosition, 3,
+     context.FLOAT, false, 3*4, 0);
+  }
+}
 Shape.prototype.addUniform3f=function(uniform,a,b,c){
   this.uniforms.push([uniform,a,b,c]);
 }
 Shape.prototype.calcMatrix=function(){
-  this.matrix=GLUtil.mat4identity();
-  this.matrix=GLUtil.mat4scaleVec3(this.matrix,this.scale);
+  this._matrixDirty=false;
+  this.matrix=GLUtil.mat4scaledVec3(this.scale);
   this.matrix=GLUtil.mat4rotVecDegrees(this.matrix,this.angle,this.vector);
   this.matrix[12]+=this.position[0];
   this.matrix[13]+=this.position[1];
@@ -224,54 +302,29 @@ Shape.prototype.setScale=function(x,y,z){
   } else {
    this.scale=[x,y,z];
   }
-  this.calcMatrix();
+  this._matrixDirty=true;
   return this;
 }
 Shape.prototype.setPosition=function(x,y,z){
   this.position=[x,y,z];
-  this.calcMatrix();
+  this._matrixDirty=true;
+  return this;
+}
+Shape.prototype.rotate=function(angle){
+  this.angle+=angle;
+  this.angle%=360;
+  this._matrixDirty=true;
   return this;
 }
 Shape.prototype.setRotation=function(angle, vector){
-  this.angle=angle;
+  this.angle=angle%360;
   this.vector=vector;
-  this.calcMatrix();
+  this._matrixDirty=true;
   return this;
 }
 Shape.prototype.render=function(attribPosition, attribColor, attribNormal, uniformMatrix){
-  this.context.bindBuffer(this.context.ARRAY_BUFFER, this.vertfaces.verts);
-  var format=this.vertfaces.format;
-  if(format==this.constructor.VEC2DCOLOR){
-   this.context.vertexAttribPointer(attribPosition, 2,
-     this.context.FLOAT, false, 5*4, 0);
-   this.context.vertexAttribPointer(attribColor, 3,
-     this.context.FLOAT, false, 5*4, 2*4);
-  } else if(format==this.constructor.VEC3DCOLOR){
-  this.context.vertexAttribPointer(attribPosition, 3,
-    this.context.FLOAT, false, 6*4, 0);
-  this.context.vertexAttribPointer(attribColor, 3,
-    this.context.FLOAT, false, 6*4, 3*4);
-  } else if(format==this.constructor.VEC3DNORMAL){
-  this.context.vertexAttribPointer(attribPosition, 3,
-    this.context.FLOAT, false, 6*4, 0);
-  this.context.vertexAttribPointer(attribNormal, 3,
-    this.context.FLOAT, false, 6*4, 3*4);
-  } else if(format==this.constructor.VEC3DNORMALCOLOR){
-  this.context.vertexAttribPointer(attribPosition, 3,
-    this.context.FLOAT, false, 9*4, 0);
-  if(attribNormal!==null && attribNormal>=0){
-   this.context.vertexAttribPointer(attribNormal, 3,
-     this.context.FLOAT, false, 9*4, 3*4);
-  }
-  this.context.vertexAttribPointer(attribColor, 3,
-    this.context.FLOAT, false, 9*4, 6*4);
-  } else if(format==this.constructor.VEC2D){
-   this.context.vertexAttribPointer(attribPosition, 2,
-     this.context.FLOAT, false, 2*4, 0);
-  } else if(format==this.constructor.VEC3D){
-   this.context.vertexAttribPointer(attribPosition, 3,
-     this.context.FLOAT, false, 3*4, 0);
-  }
+  this._bind(this.context,this.vertfaces,
+    attribPosition, attribColor, attribNormal);
   for(var i=0;i<this.uniforms.length;i++){
     var uniform=this.uniforms[i];
     if(uniform.length==4){
@@ -279,9 +332,11 @@ Shape.prototype.render=function(attribPosition, attribColor, attribNormal, unifo
     }
   }
   if(uniformMatrix!==null){
+   if(this._matrixDirty){
+    this.calcMatrix();
+   }
    this.context.uniformMatrix4fv(uniformMatrix,false,this.matrix);
   }
-  this.context.bindBuffer(this.context.ELEMENT_ARRAY_BUFFER, this.vertfaces.faces);
   this.context.drawElements(this.context.TRIANGLES,
     this.vertfaces.facesLength,
     this.vertfaces.type, 0);
@@ -479,11 +534,15 @@ void main(){\
   uniformValues["sa"]=[4,4,4];
   uniformValues["sd"]=[2,2,2];
   uniformValues["ss"]=[0,0,0];
-  uniformValues["sdir"]=[0,0,-1];
+  uniformValues["sdir"]=[0,0,-1]; // directs the light uniformly across all objects on the screen
   uniformValues["ma"]=[0.2,0.2,0.2];
   uniformValues["md"]=[1,1,1];
   uniformValues["ms"]=[1,1,1];
+  uniformValues["mshin"]=[0];
   this.uniforms=uniformValues;
+  this.lastFrame=-1;
+  this.frameGaps=[]
+  this.frameCount=0;
   var program=GLUtil.compileShaders(this.context,vertex,fragment);
   var actives=GLUtil.getActives(this.context,program);
   this.position=actives["position"];
@@ -495,18 +554,38 @@ void main(){\
   GLUtil.initColorAndDepth(this.context,
     rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0, 1.0,
     999999.0, this.context.LEQUAL);
-  for(var i in uniformValues){
-    if(uniformValues.hasOwnProperty(i)){
-      v=uniformValues[i];
-      this.context.uniform3f(actives[i], v[0],v[1],v[2]);
-    }
-  }
-  this.context.uniform1f(actives["mshin"],1.0);
+  GLUtil.setUniforms(this.context,this.actives,this.uniforms);
   this.animate();
  } else {
   this.context.fillStyle=this.constructor.hls2hex(this.hls);
   this.context.fillRect(0,0,this.width,this.height);
  }
+}
+CanvasBackground.prototype.debugFps=function(){
+ var now=window.performance.now();
+  if(this.lastFrame>=0){
+    var gap=now-this.lastFrame;
+    if(this.frameGaps.length>300)
+     this.frameGaps.shift();
+    if(gap>5000){
+     // treat as a discontinuity, so discard all the
+     // frame gaps recorded so far
+     this.frameGaps=[];
+    }
+    this.frameGaps.push(gap);
+  }
+  this.lastFrame=now;
+  this.frameCount++;
+  if(this.frameGaps.length>0 && this.frameCount>=30){
+    this.frameCount=0;
+    var total=0;
+    for(var i=0;i<this.frameGaps.length;i++){
+      total+=this.frameGaps[i];
+    }
+    total/=1.0*this.frameGaps.length;
+    var fps=(total<=0) ? 60 : 1000.0/total;
+    console.log(fps+" fps");
+  }
 }
 CanvasBackground.prototype.animate=function(){
   GLUtil.renderShapes(this.context,
@@ -517,6 +596,10 @@ CanvasBackground.prototype.animate=function(){
 CanvasBackground.prototype.drawOne=function(){
  var newhls=this.constructor.varyColor(this.hls);
  if(this.use3d){
+  if(this.shapes.length>300){
+   // Delete the oldest shape generated
+   this.shapes.shift();
+  }
   var x=(this.constructor.rand(2000)/1000.0)-1.0;
   var y=(this.constructor.rand(2000)/1000.0)-1.0;
   var z=(this.constructor.rand(60))/60.0;
