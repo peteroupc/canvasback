@@ -224,13 +224,6 @@ function callRequestFrame(func){
  }
 }
 
-function BufferManager(){
-  this.currentContext=null;
-  this.currentVertFaces=null;
-}
-
-var globalBufferManager=new BufferManager();
-
 function Shape(context,vertfaces){
   this.vertfaces=vertfaces;
   this.context=context;
