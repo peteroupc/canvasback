@@ -10,10 +10,15 @@ at: http://upokecenter.dreamhosters.com/articles/donate-now-2/
 var GLUtil={
 initColorAndDepth:function(context,r,g,b,a,depth,depthFunc){
   context.enable(context.DEPTH_TEST);
+  context.enable(context.BLEND);
+  context.blendFunc(context.SRC_ALPHA,
+    context.ONE_MINUS_SRC_ALPHA);
   context.depthFunc(depthFunc);
   context.clearColor(r,g,b, (typeof a=="undefined") ? 1.0 : a);
   context.clearDepth(depth);
-  context.clear(context.COLOR_BUFFER_BIT | context.DEPTH_BUFFER_BIT);
+  context.clear(
+    context.COLOR_BUFFER_BIT | 
+    context.DEPTH_BUFFER_BIT);
 },
 renderShapes:function(context,shapes,position,color,normal,matrix){
   for(var i=0;i<shapes.length;i++){
@@ -27,8 +32,10 @@ setUniforms:function(context,actives,uniforms){
       v=uniforms[i];
       if(v.length==3){
        context.uniform3f(actives[i], v[0],v[1],v[2]);
+      } else if(v.length==16){
+       context.uniformMatrix4fv(actives[i],false,v);
       } else {
-       context.uniform1f(actives[i], v[0]);      
+       context.uniform1f(actives[i], v[0]);
       }
     }
   }
@@ -137,18 +144,50 @@ createCube:function(context){
  return GLUtil.createVerticesAndFaces(
    context,vertices,faces,Shape.VEC3DNORMAL);
 },
+vec3cross:function(a,b){
+return [a[1]*b[2]-a[2]*b[1],
+ a[2]*b[0]-a[0]*b[2],
+ a[0]*b[1]-a[1]*b[0]];
+},
+vec3dot:function(a,b){
+return a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+},
+vec3normInPlace:function(vec){
+ var x=vec[0];
+ var y=vec[1];
+ var z=vec[2];
+ len=Math.sqrt(x*x+y*y+z*z);
+ if(len!=0){
+  len=1.0/len;
+  vec[0]*=len;
+  vec[1]*=len;
+  vec[2]*=len;
+ }
+},
+vec3norm:function(vec){
+ var ret=[vec[0],vec[1],vec[2]]
+ GLUtil.vec3normInPlace(ret);
+ return ret;
+},
+vec3length:function(a){
+ var dx=a[0];
+ var dy=a[1];
+ var dz=a[2];
+ return Math.sqrt(dx*dx+dy*dy+dz*dz);
+},
+vec3distSquared:function(a,b){
+ var dx=a[0]-b[0];
+ var dy=a[1]-b[1];
+ var dz=a[2]-b[2];
+ return dx*dx+dy*dy+dz*dz;
+},
 mat4identity:function(){
  return [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]
-},
-vec3normalize:function(v){
-	var len = Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
-	return [v[0]/len, v[1]/len, v[2]/len];
 },
 mat4scaleVec3:function(mat,v3){
   var scaleX=v3[0];
   var scaleY=v3[1];
   var scaleZ=v3[2];
-  return ma
 	return [
 		mat[0]*scaleX, mat[1]*scaleY, mat[2]*scaleZ, mat[3],
 		mat[4]*scaleX, mat[5]*scaleY, mat[6]*scaleZ, mat[7],
@@ -158,6 +197,46 @@ mat4scaleVec3:function(mat,v3){
 },
 mat4scaledVec3:function(v3){
   return [v3[0],0,0,0,0,v3[1],0,0,0,0,v3[2],0,0,0,0,1]
+},
+mat4translatedVec3:function(v3){
+  return [1,0,0,0,0,1,0,0,0,0,1,0,v3[0],v3[1],v3[2],1]
+},
+mat4perspectiveDegrees:function(fovY,aspectRatio,nearZ,farZ){
+ var f = 1/Math.tan(fovY*Math.PI/360);
+ var nmf = nearZ-farZ;
+ nmf=1/nmf;
+ return [ f/aspectRatio, 0, 0, 0, 0, f, 0, 0, 0, 0,
+   nmf*(nearZ+farZ), -1, 0, 0, nmf*nearZ*farZ*2, 0]
+},
+mat4lookat:function(viewerPos, lookingAt, up){
+ var f=[viewerPos[0]-lookingAt[0],viewerPos[1]-lookingAt[1],viewerPos[2]-lookingAt[2]];
+ if(GLUtil.vec3length(f)<1e-6){
+   return GLUtil.mat4identity();
+ }
+ GLUtil.vec3normInPlace(f);
+ var s=GLUtil.vec3cross(up,f);
+ GLUtil.vec3normInPlace(s);
+ var u=GLUtil.vec3cross(f,s);
+ GLUtil.vec3normInPlace(u);
+ return [s[0],u[0],f[0],0,s[1],u[1],f[1],0,s[2],u[2],f[2],0,
+    -GLUtil.vec3dot(viewerPos,s),
+    -GLUtil.vec3dot(viewerPos,u),
+    -GLUtil.vec3dot(viewerPos,f),1];
+},
+mat4ortho:function(l,r,b,t,n,f){
+ var width=r-l;
+ var height=b-t;
+ var depth=n-f;
+ return [-2/width,0,0,0,0,-2/height,0,0,0,0,2/depth,0,
+   -(l+r)/width,-(t+b)/height,-(n+f)/depth,1];
+},
+mat4frustum:function(l,r,b,t,n,f){
+ var dn=2*n;
+ var onedx=1/(r-l);
+ var onedy=1/(t-b);
+ var onedz=1/(n-f);
+return [dn*onedx,0,0,0,0,dn*onedy,0,0,(l+r)*onedx,(t+b)*onedy,(f+n)*onedz,-1,
+   0,0,dn*f*onedz,0];
 },
 mat4scaleVec3InPlace:function(mat,v3){
   var scaleX=v3[0];
@@ -177,7 +256,7 @@ mat4scaleVec3InPlace:function(mat,v3){
   mat[14]*=scaleZ;
 },
 mat4rotVecDegrees:function(mat, angle, v){
-v=GLUtil.vec3normalize(v);
+v=GLUtil.vec3norm(v);
 angle=angle*Math.PI/180;
 var c = Math.cos(angle);
 var s = Math.sin(angle);
@@ -278,8 +357,45 @@ Shape.prototype._bind=function(context, vertfaces,
      context.FLOAT, false, 3*4, 0);
   }
 }
+Shape.prototype.getUniform=function(uniform){
+  for(var i=0;i<this.uniforms.length;i++){
+   if(this.uniforms[i][0]==uniform){
+    return this.uniforms[i].slice(1,this.uniforms[i].length);
+   }
+  }
+  return null;
+}
 Shape.prototype.addUniform3f=function(uniform,a,b,c){
+  for(var i=0;i<this.uniforms.length;i++){
+   if(this.uniforms[i][0]==uniform){
+    this.uniforms[i][1]=a;
+    this.uniforms[i][2]=b;
+    this.uniforms[i][3]=c;
+    return;
+   }
+  }
   this.uniforms.push([uniform,a,b,c]);
+}
+Shape.prototype.addUniform1f=function(uniform,a){
+  for(var i=0;i<this.uniforms.length;i++){
+   if(this.uniforms[i][0]==uniform){
+    this.uniforms[i][1]=a;
+    return;
+   }
+  }
+  this.uniforms.push([uniform,a]);
+}
+Shape.prototype.addUniform4f=function(uniform,a,b,c,d){
+  for(var i=0;i<this.uniforms.length;i++){
+   if(this.uniforms[i][0]==uniform){
+    this.uniforms[i][1]=a;
+    this.uniforms[i][2]=b;
+    this.uniforms[i][3]=c;
+    this.uniforms[i][4]=d;
+    return;
+   }
+  }
+  this.uniforms.push([uniform,a,b,c,d]);
 }
 Shape.prototype.calcMatrix=function(){
   this._matrixDirty=false;
@@ -322,6 +438,10 @@ Shape.prototype.render=function(attribPosition, attribColor, attribNormal, unifo
     var uniform=this.uniforms[i];
     if(uniform.length==4){
       this.context.uniform3f(uniform[0],uniform[1],uniform[2],uniform[3]);
+    } else if(uniform.length==5){
+      this.context.uniform4f(uniform[0],uniform[1],uniform[2],uniform[3],uniform[4]);
+    } else if(uniform.length==2){
+      this.context.uniform1f(uniform[0],uniform[1]);
     }
   }
   if(uniformMatrix!==null){
@@ -508,14 +628,16 @@ CanvasBackground.prototype.drawBack=function(){
   var vertex="\
 attribute vec3 position;\
 attribute vec3 normal;\
-uniform mat4 matrix;/* currently used only for the model transform */\
+uniform mat4 world;\
+uniform mat4 view;\
+uniform mat4 projection;\
 varying vec3 normalVar;\
 varying vec3 viewPositionVar;\
 void main(){\
 vec4 positionVec4=vec4(position,1.0);\
-gl_Position=matrix*positionVec4;\
-viewPositionVar=vec3(gl_Position);\
-normalVar=vec3(matrix*vec4(normal,0.0));\
+gl_Position=projection*view*world*positionVec4;\
+viewPositionVar=vec3(view*world*positionVec4);\
+normalVar=vec3(world*vec4(normal,0.0));\
 }"
   var fragment="\
 precision mediump float;\
@@ -528,34 +650,43 @@ uniform vec3 md;\
 uniform vec3 ms;\
 uniform float mshin;\
 uniform vec3 color;\
+uniform float alpha;\
 varying vec3 normalVar;\
 varying vec3 viewPositionVar;\
 void main(){\
  vec3 phong=(sa*ma)+(ss*ms*pow(max(dot(reflect(sdir,normalVar),\
     normalize(viewPositionVar)),0.0),mshin))+(sd*md*max(dot(normalVar,sdir),0.0));\
- gl_FragColor=vec4(phong*color,1.0);\
+ gl_FragColor=vec4(phong*color,alpha);\
 }"
   var uniformValues={};
-  uniformValues["sa"]=[4,4,4];
-  uniformValues["sd"]=[2,2,2];
-  uniformValues["ss"]=[0,0,0];
+  // light data
+  uniformValues["sa"]=[4,4,4]; // source ambient color
+  uniformValues["sd"]=[2,2,2]; // source diffuse color
+  uniformValues["ss"]=[0,0,0]; // source specular color
   uniformValues["sdir"]=[0,0,-1]; // directs the light uniformly across all objects on the screen
-  uniformValues["ma"]=[0.2,0.2,0.2];
-  uniformValues["md"]=[1,1,1];
-  uniformValues["ms"]=[1,1,1];
-  uniformValues["mshin"]=[0];
+  uniformValues["ma"]=[0.2,0.2,0.2]; // material ambient color
+  uniformValues["md"]=[1,1,1]; // material diffuse color
+  uniformValues["ms"]=[1,1,1]; // material specular color
+  uniformValues["mshin"]=[0]; // material shininess
+  // matrices
+  uniformValues["projection"]=GLUtil.mat4identity();
+  uniformValues["view"]=GLUtil.mat4identity();
+  var width=this.context.canvas.width*1;
+  var height=this.context.canvas.height*1;
   this.uniforms=uniformValues;
-  this.lastFrame=-1;
-  this.frameGaps=[]
-  this.frameCount=0;
+  this._initDebugFps();
   var program=GLUtil.compileShaders(this.context,vertex,fragment);
   var actives=GLUtil.getActives(this.context,program);
   this.position=actives["position"];
-  this.modelMatrix=actives["matrix"]
+  this.modelMatrix=actives["world"];
+  var perspectiveMatrix=actives["world"];
   this.attribColor=actives["color"];
+  this.attribAlpha=actives["alpha"];
   this.attribNormal=actives["normal"];
   this.cubeMesh=GLUtil.createCube(this.context);
   this.actives=actives;
+  this.fadingIn=[];
+  this.fadingOut=[];
   GLUtil.initColorAndDepth(this.context,
     rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0, 1.0,
     999999.0, this.context.LEQUAL);
@@ -565,6 +696,11 @@ void main(){\
   this.context.fillStyle=this.constructor.hls2hex(this.hls);
   this.context.fillRect(0,0,this.width,this.height);
  }
+}
+CanvasBackground.prototype._initDebugFps=function(){
+  this.lastFrame=-1;
+  this.frameGaps=[]
+  this.frameCount=0;
 }
 CanvasBackground.prototype.debugFps=function(){
  var now=window.performance.now();
@@ -603,7 +739,7 @@ CanvasBackground.prototype.drawOne=function(){
  if(this.use3d){
   if(this.shapes.length>300){
    // Delete the oldest shape generated
-   this.shapes.shift();
+   var lastShape=this.shapes.shift();
   }
   var x=(this.constructor.rand(2000)/1000.0)-1.0;
   var y=(this.constructor.rand(2000)/1000.0)-1.0;
@@ -622,6 +758,7 @@ CanvasBackground.prototype.drawOne=function(){
    shape.setRotation(angle,vector);
    shape.setPosition(x,y,z);
    shape.addUniform3f(this.attribColor,rgb[0],rgb[1],rgb[2]);
+   shape.addUniform1f(this.attribAlpha,1.0);
    this.shapes.push(shape);
  } else {
   var rect=[this.constructor.rand(this.width+30)-30,
