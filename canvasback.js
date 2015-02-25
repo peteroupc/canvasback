@@ -693,40 +693,40 @@ CanvasBackground.prototype.setColor=function(color){
  this.hls=this.constructor.rgb2hls(rgb);
  this.drawBack();
 }
-CanvasBackground._vertexShader="\
-attribute vec3 position;\
-attribute vec3 normal;\
-uniform mat4 world;\
-uniform mat4 view;\
-uniform mat4 projection;\
-varying vec3 normalVar;\
-varying vec3 viewPositionVar;\
-void main(){\
-vec4 positionVec4=vec4(position,1.0);\
-mat4 viewWorld=view*world;\
-gl_Position=projection*viewWorld*positionVec4;\
-viewPositionVar=vec3(viewWorld*positionVec4);\
-normalVar=vec3(world*vec4(normal,0.0));\
-}";
-CanvasBackground._fragmentShader="\
-precision mediump float;\
-uniform vec3 sa;\
-uniform vec3 sd;\
-uniform vec3 ss;\
-uniform vec3 sdir;\
-uniform vec3 ma;\
-uniform vec3 md;\
-uniform vec3 ms;\
-uniform float mshin;\
-uniform vec3 color;\
-uniform float alpha;\
-varying vec3 normalVar;\
-varying vec3 viewPositionVar;\
-void main(){\
- vec3 phong=(sa*ma)+(ss*ms*pow(max(dot(reflect(normalize(sdir),normalVar),\
-    normalize(viewPositionVar)),0.0),mshin))+(sd*md*max(dot(normalVar,sdir),0.0));\
- gl_FragColor=vec4(phong*color,alpha);\
-}";
+CanvasBackground._vertexShader="\n" +
+"attribute vec3 position;\n" +
+"attribute vec3 normal;\n" +
+"uniform mat4 world;\n" +
+"uniform mat4 view;\n" +
+"uniform mat4 projection;\n" +
+"varying vec3 normalVar;\n" +
+"varying vec3 viewPositionVar;\n" +
+"void main(){\n" +
+"vec4 positionVec4=vec4(position,1.0);\n" +
+"mat4 viewWorld=view*world;\n" +
+"gl_Position=projection*viewWorld*positionVec4;\n" +
+"viewPositionVar=vec3(viewWorld*positionVec4);\n" +
+"normalVar=vec3(world*vec4(normal,0.0));\n" +
+"}";
+CanvasBackground._fragmentShader="\n" +
+"precision mediump float;\n" +
+"uniform vec3 sa;\n" +
+"uniform vec3 sd;\n" +
+"uniform vec3 ss;\n" +
+"uniform vec3 sdir;\n" +
+"uniform vec3 ma;\n" +
+"uniform vec3 md;\n" +
+"uniform vec3 ms;\n" +
+"uniform float mshin;\n" +
+"uniform vec3 color;\n" +
+"uniform float alpha;\n" +
+"varying vec3 normalVar;\n" +
+"varying vec3 viewPositionVar;\n" +
+"void main(){\n" +
+" vec3 phong=(sa*ma)+(ss*ms*pow(max(dot(reflect(normalize(sdir),normalVar),\n" +
+"    normalize(viewPositionVar)),0.0),mshin))+(sd*md*max(dot(normalVar,sdir),0.0));\n" +
+" gl_FragColor=vec4(phong*color,alpha);\n" +
+"}";
 CanvasBackground.prototype.drawBack=function(){
  document.body.style.backgroundColor=this.constructor.hls2hex(this.hls);
  if(this.use3d){
