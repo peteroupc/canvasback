@@ -16,7 +16,7 @@ initColorAndDepth:function(context,r,g,b,a,depth,depthFunc){
   context.clearColor(r,g,b, (typeof a=="undefined") ? 1.0 : a);
   context.clearDepth(depth);
   context.clear(
-    context.COLOR_BUFFER_BIT | 
+    context.COLOR_BUFFER_BIT |
     context.DEPTH_BUFFER_BIT);
 },
 get3DOr2DContext:function(canvasElement){
@@ -47,11 +47,11 @@ get3DContext:function(canvasElement,err){
   var c=canvasElement.get3DOr2DContext(canvasElement);
   var errmsg=null;
   if(!c && window.WebGLShader){
-    errmsg="Failed to initialize graphics support required by this page.";  
+    errmsg="Failed to initialize graphics support required by this page.";
   } else if(window.WebGLShader && !is3DContext(c)){
-    errmsg="This page requires WebGL, but it failed to start. Your computer might not support WebGL.";    
+    errmsg="This page requires WebGL, but it failed to start. Your computer might not support WebGL.";
   } else if(!c || !is3DContext(c)){
-    errmsg="This page requires a WebGL-supporting browser.";  
+    errmsg="This page requires a WebGL-supporting browser.";
   }
   if(errmsg){
    (err || window.alert)(errmsg);
@@ -504,7 +504,7 @@ var FrameCounter=function(){
  this.frameCount=0;
 }
 FrameCounter.prototype.update=function(){
- var now=("performance" in window) ? 
+ var now=("performance" in window) ?
    window.performance.now() : (new Date().getTime()*1000);
   if(this.lastFrame>=0){
     var gap=now-this.lastFrame;
@@ -823,7 +823,7 @@ CanvasBackground.prototype.drawOne=function(){
   this.context.fillRect(rect[0],rect[1],rect[2],rect[3]);
  }
 };
-CanvasBackground.colorBackground=function(color){
+CanvasBackground["colorBackground"]=function(color){
 $(document).ready(function(){
  var canvas=new CanvasBackground(color);
  canvas.animate();
