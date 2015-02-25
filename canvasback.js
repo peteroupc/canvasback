@@ -6,19 +6,61 @@ http://creativecommons.org/publicdomain/zero/1.0/
 If you like this, you should donate to Peter O.
 at: http://upokecenter.dreamhosters.com/articles/donate-now-2/
 */
-
+(function(window){
 var GLUtil={
 initColorAndDepth:function(context,r,g,b,a,depth,depthFunc){
+  context.viewport(0,0,
+    context.canvas.width*1.0,context.canvas.height*1.0);
   context.enable(context.DEPTH_TEST);
-  context.enable(context.BLEND);
-  context.blendFunc(context.SRC_ALPHA,
-    context.ONE_MINUS_SRC_ALPHA);
   context.depthFunc(depthFunc);
   context.clearColor(r,g,b, (typeof a=="undefined") ? 1.0 : a);
   context.clearDepth(depth);
   context.clear(
     context.COLOR_BUFFER_BIT | 
     context.DEPTH_BUFFER_BIT);
+},
+get3DOr2DContext:function(canvasElement){
+  if(!canvasElement)return null;
+  var context=null;
+  try { context=canvasElement.getContext("webgl", {antialias: true, blend:true});
+  } catch(e) { context=null; }
+  if(!context){
+    try { context=canvasElement.getContext("experimental-webgl", {antialias: true, blend:true});
+    } catch(e) { context=null; }
+  }
+  if(!context){
+    try { context=canvasElement.getContext("moz-webgl", {antialias: true, blend:true});
+    } catch(e) { context=null; }
+  }
+  if(!context){
+    try { context=canvasElement.getContext("webkit-3d", {antialias: true, blend:true});
+    } catch(e) { context=null; }
+  }
+  if(!context){
+    try { context=canvasElement.getContext("2d", {antialias: true, blend:true});
+    } catch(e) { context=null; }
+  }
+  return context;
+},
+get3DContext:function(canvasElement,err){
+  if(!canvasElement)return null;
+  var c=canvasElement.get3DOr2DContext(canvasElement);
+  var errmsg=null;
+  if(!c && window.WebGLShader){
+    errmsg="Failed to initialize graphics support required by this page.";  
+  } else if(window.WebGLShader && !is3DContext(c)){
+    errmsg="This page requires WebGL, but it failed to start. Your computer might not support WebGL.";    
+  } else if(!c || !is3DContext(c)){
+    errmsg="This page requires a WebGL-supporting browser.";  
+  }
+  if(errmsg){
+   (err || window.alert)(errmsg);
+   return null;
+  }
+  return context;
+},
+is3DContext:function(context){
+ return context && ("compileShader" in context);
 },
 renderShapes:function(context,shapes,position,normal,matrix){
   for(var i=0;i<shapes.length;i++){
@@ -75,15 +117,22 @@ compileShaders:function(context, vertexShader, fragmentShader){
     compileShader(context,context.VERTEX_SHADER,vertexShader);
   var fs=(!fragmentShader || fragmentShader.length==0) ? null :
     compileShader(context,context.FRAGMENT_SHADER,fragmentShader);
-  var program = context.createProgram();
-  if(vs!==null)context.attachShader(program, vs);
-  if(fs!==null)context.attachShader(program, fs);
- 	context.linkProgram(program);
-  if (!context.getProgramParameter(program, context.LINK_STATUS)) {
+  var program = null;
+  if(vs!==null && fs!==null){
+   program = context.createProgram();
+   context.attachShader(program, vs);
+   context.attachShader(program, fs);
+ 	 context.linkProgram(program);
+   if (!context.getProgramParameter(program, context.LINK_STATUS)) {
 		console.log("link: "+context.getProgramInfoLog(program));
-		return null;
-	}
-  context.useProgram(program);
+		context.deleteProgram(program);
+    program=null;
+	 } else {
+    context.useProgram(program);
+   }
+  }
+  if(vs!==null)context.deleteShader(vs);
+  if(fs!==null)context.deleteShader(fs);
   return program;
 },
 getActives:function(context,program){
@@ -152,6 +201,23 @@ return [a[1]*b[2]-a[2]*b[1],
 vec3dot:function(a,b){
 return a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
 },
+vec3addInPlace:function(a,b){
+var b0=b[0];
+var b1=b[1];
+a[0]+=b0;
+a[1]+=b1;
+},
+vec3subInPlace:function(a,b){
+var b0=b[0];
+var b1=b[1];
+a[0]-=b0;
+a[1]-=b1;
+},
+vec3scaleInPlace:function(a,scalar){
+a[0]*=scalar;
+a[1]*=scalar;
+a[2]*=scalar;
+},
 vec3normInPlace:function(vec){
  var x=vec[0];
  var y=vec[1];
@@ -174,12 +240,6 @@ vec3length:function(a){
  var dy=a[1];
  var dz=a[2];
  return Math.sqrt(dx*dx+dy*dy+dz*dz);
-},
-vec3distSquared:function(a,b){
- var dx=a[0]-b[0];
- var dy=a[1]-b[1];
- var dz=a[2]-b[2];
- return dx*dx+dy*dy+dz*dz;
 },
 mat4identity:function(){
  return [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]
@@ -255,7 +315,7 @@ mat4scaleVec3InPlace:function(mat,v3){
   mat[10]*=scaleZ;
   mat[14]*=scaleZ;
 },
-mat4rotVecDegrees:function(mat, angle, v){
+mat4rotateVecDegrees:function(mat, angle, v){
 v=GLUtil.vec3norm(v);
 angle=angle*Math.PI/180;
 var c = Math.cos(angle);
@@ -378,7 +438,7 @@ Shape.prototype.addUniform4f=function(uniform,a,b,c,d){
 Shape.prototype.calcMatrix=function(){
   this._matrixDirty=false;
   this.matrix=GLUtil.mat4scaledVec3(this.scale);
-  this.matrix=GLUtil.mat4rotVecDegrees(this.matrix,this.angle,this.vector);
+  this.matrix=GLUtil.mat4rotateVecDegrees(this.matrix,this.angle,this.vector);
   this.matrix[12]+=this.position[0];
   this.matrix[13]+=this.position[1];
   this.matrix[14]+=this.position[2];
@@ -437,7 +497,43 @@ Shape.prototype.render=function(attribPosition, attribNormal, uniformMatrix){
     this.vertfaces.type, 0);
 }
 
-function CanvasBackground(color){
+var FrameCounter=function(){
+ this.fps=-1;
+ this.lastFrame=-1;
+ this.frameGaps=[]
+ this.frameCount=0;
+}
+FrameCounter.prototype.update=function(){
+ var now=("performance" in window) ? 
+   window.performance.now() : (new Date().getTime()*1000);
+  if(this.lastFrame>=0){
+    var gap=now-this.lastFrame;
+    if(this.frameGaps.length>300)
+     this.frameGaps.shift();
+    if(gap>5000){
+     // treat as a discontinuity, so discard all the
+     // frame gaps recorded so far
+     this.frameGaps=[];
+    }
+    this.frameGaps.push(gap);
+  }
+  this.lastFrame=now;
+  this.frameCount++;
+  if(this.frameGaps.length>0 && this.frameCount>=30){
+    this.frameCount=0;
+    var total=0;
+    for(var i=0;i<this.frameGaps.length;i++){
+      total+=this.frameGaps[i];
+    }
+    total/=1.0*this.frameGaps.length;
+    this.fps=(total<=0) ? 60 : 1000.0/total;
+  }
+}
+FrameCounter.prototype.getFPS=function(){
+ return this.fps;
+}
+
+var CanvasBackground=function(color){
   "use strict";
   color=color||"#ff0000";
   this.width=1000;
@@ -454,14 +550,8 @@ function CanvasBackground(color){
   $("body").append(canvas);
   this.use3d=true;
   var canvasElement=canvas.get(0);
-  this.context=canvasElement.getContext("webgl", {antialias: true});
-  if(!this.context)
-   this.context=canvasElement.getContext("experimental-webgl", {antialias: true});
-  if(!this.context){
-   // Fallback draws simple boxes
-   this.use3d=false;
-   this.context=canvasElement.getContext("2d");
-  }
+  this.context=GLUtil.get3DOr2DContext(canvasElement);
+  this.use3d=GLUtil.is3DContext(this.context);
   this.shapes=[]
   this.setColor(color);
 }
@@ -603,11 +693,7 @@ CanvasBackground.prototype.setColor=function(color){
  this.hls=this.constructor.rgb2hls(rgb);
  this.drawBack();
 }
-CanvasBackground.prototype.drawBack=function(){
- document.body.style.backgroundColor=this.constructor.hls2hex(this.hls);
- if(this.use3d){
-  var rgb=this.constructor.hls2rgb(this.hls);
-  var vertex="\
+CanvasBackground._vertexShader="\
 attribute vec3 position;\
 attribute vec3 normal;\
 uniform mat4 world;\
@@ -617,11 +703,12 @@ varying vec3 normalVar;\
 varying vec3 viewPositionVar;\
 void main(){\
 vec4 positionVec4=vec4(position,1.0);\
-gl_Position=projection*view*world*positionVec4;\
-viewPositionVar=vec3(view*world*positionVec4);\
+mat4 viewWorld=view*world;\
+gl_Position=projection*viewWorld*positionVec4;\
+viewPositionVar=vec3(viewWorld*positionVec4);\
 normalVar=vec3(world*vec4(normal,0.0));\
-}"
-  var fragment="\
+}";
+CanvasBackground._fragmentShader="\
 precision mediump float;\
 uniform vec3 sa;\
 uniform vec3 sd;\
@@ -636,10 +723,14 @@ uniform float alpha;\
 varying vec3 normalVar;\
 varying vec3 viewPositionVar;\
 void main(){\
- vec3 phong=(sa*ma)+(ss*ms*pow(max(dot(reflect(sdir,normalVar),\
+ vec3 phong=(sa*ma)+(ss*ms*pow(max(dot(reflect(normalize(sdir),normalVar),\
     normalize(viewPositionVar)),0.0),mshin))+(sd*md*max(dot(normalVar,sdir),0.0));\
  gl_FragColor=vec4(phong*color,alpha);\
-}"
+}";
+CanvasBackground.prototype.drawBack=function(){
+ document.body.style.backgroundColor=this.constructor.hls2hex(this.hls);
+ if(this.use3d){
+  var rgb=this.constructor.hls2rgb(this.hls);
   var uniformValues={};
   // light data
   uniformValues["sa"]=[4,4,4]; // source ambient color
@@ -653,15 +744,14 @@ void main(){\
   // matrices
   uniformValues["projection"]=GLUtil.mat4identity();
   uniformValues["view"]=GLUtil.mat4identity();
-  var width=this.context.canvas.width*1;
-  var height=this.context.canvas.height*1;
   this.uniforms=uniformValues;
   this._initDebugFps();
-  var program=GLUtil.compileShaders(this.context,vertex,fragment);
+  var program=GLUtil.compileShaders(this.context,
+    this.constructor._vertexShader,
+    this.constructor._fragmentShader);
   var actives=GLUtil.getActives(this.context,program);
   this.position=actives["position"];
   this.modelMatrix=actives["world"];
-  var perspectiveMatrix=actives["world"];
   this.attribColor=actives["color"];
   this.attribAlpha=actives["alpha"];
   this.attribNormal=actives["normal"];
@@ -669,51 +759,33 @@ void main(){\
   this.actives=actives;
   this.fadingIn=[];
   this.fadingOut=[];
+  this.count=0;
   GLUtil.initColorAndDepth(this.context,
     rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0, 1.0,
     999999.0, this.context.LEQUAL);
   GLUtil.setUniforms(this.context,this.actives,this.uniforms);
-  this.animate();
  } else {
   this.context.fillStyle=this.constructor.hls2hex(this.hls);
   this.context.fillRect(0,0,this.width,this.height);
  }
 }
 CanvasBackground.prototype._initDebugFps=function(){
-  this.lastFrame=-1;
-  this.frameGaps=[]
-  this.frameCount=0;
+ this.fpsCounter=new FrameCounter();
 }
 CanvasBackground.prototype.debugFps=function(){
- var now=window.performance.now();
-  if(this.lastFrame>=0){
-    var gap=now-this.lastFrame;
-    if(this.frameGaps.length>300)
-     this.frameGaps.shift();
-    if(gap>5000){
-     // treat as a discontinuity, so discard all the
-     // frame gaps recorded so far
-     this.frameGaps=[];
-    }
-    this.frameGaps.push(gap);
-  }
-  this.lastFrame=now;
-  this.frameCount++;
-  if(this.frameGaps.length>0 && this.frameCount>=30){
-    this.frameCount=0;
-    var total=0;
-    for(var i=0;i<this.frameGaps.length;i++){
-      total+=this.frameGaps[i];
-    }
-    total/=1.0*this.frameGaps.length;
-    var fps=(total<=0) ? 60 : 1000.0/total;
-    console.log(fps+" fps");
-  }
+ this.fpsCounter.update();
 }
 CanvasBackground.prototype.animate=function(){
-  GLUtil.renderShapes(this.context,
-   this.shapes,this.position,
-   this.attribNormal, this.modelMatrix);
+  this.count++;
+  if(this.count>=4){
+   this.count=0;
+   this.drawOne();
+  }
+  if(this.use3d){
+   GLUtil.renderShapes(this.context,
+    this.shapes,this.position,
+    this.attribNormal, this.modelMatrix);
+  }
   callRequestFrame(this.animate.bind(this));
 }
 CanvasBackground.prototype.drawOne=function(){
@@ -754,8 +826,8 @@ CanvasBackground.prototype.drawOne=function(){
 CanvasBackground.colorBackground=function(color){
 $(document).ready(function(){
  var canvas=new CanvasBackground(color);
- window.setInterval(function(){
-   canvas.drawOne();
- },100);
+ canvas.animate();
 });
 };
+window["CanvasBackground"]=CanvasBackground;
+})(this);
