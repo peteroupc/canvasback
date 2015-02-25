@@ -538,10 +538,9 @@ var CanvasBackground=function(color){
   color=color||"#ff0000";
   this.width=1000;
   this.height=1000;
-  var canvas=$("<canvas>")
-   .attr("width",this.width+"")
-   .attr("height",this.height+"")
-   .css({"width":"100%",
+  var canvas=$("<canvas>")["attr"]("width",this.width+"")["attr"](
+    "height",this.height+"")["css"]({
+          "width":"100%",
           "height":"100%",
           "left":"0px",
           "zIndex":-1,
