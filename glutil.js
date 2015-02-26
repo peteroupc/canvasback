@@ -3,10 +3,10 @@ initColorAndDepth:function(context,r,g,b,a,depth,depthFunc){
   context.viewport(0,0,
     context.canvas.width*1.0,context.canvas.height*1.0);
   context.enable(context.DEPTH_TEST);
-  context.depthFunc((typeof depthFunc=="undefined") ? 
+  context.depthFunc((typeof depthFunc=="undefined") ?
      context.LEQUAL : depthFunc);
   context.clearColor(r,g,b, (typeof a=="undefined") ? 1.0 : a);
-  context.clearDepth((typeof depth=="undefined") ? 
+  context.clearDepth((typeof depth=="undefined") ?
      999999 : depthFunc);
   context.clear(
     context.COLOR_BUFFER_BIT |
@@ -101,17 +101,17 @@ createVerticesAndFaces:function(context, vertices, faces, format){
 createCube:function(context){
  // Position X, Y, Z, normal NX, NY, NZ, texture U, V
  var vertices=[
--1.0, -1.0, 1.0, -1, 0, 0, 1, 1, 
--1.0, 1.0, 1.0, -1, 0, 0, 1, 0, 
--1.0, 1.0, -1.0, -1, 0, 0, 0, 0, 
--1.0, -1.0, -1.0, -1, 0, 0, 0, 1, 
-1.0, -1.0, -1.0, 1, 0, 0, 1, 1, 
-1.0, 1.0, -1.0, 1, 0, 0, 1, 0, 
-1.0, 1.0, 1.0, 1, 0, 0, 0, 0, 1.0, -1.0, 1.0, 1, 0, 0, 0, 1, 1.0, -1.0, -1.0, 0, -1, 0, 1, 1, 1.0, -1.0, 1.0, 0, 
--1, 0, 1, 0, -1.0, -1.0, 1.0, 0, -1, 0, 0, 0, -1.0, -1.0, -1.0, 0, -1, 0, 0, 1, 1.0, 1.0, 1.0, 0, 1, 0, 
-1, 1, 1.0, 1.0, -1.0, 0, 1, 0, 1, 0, -1.0, 1.0, -1.0, 0, 1, 0, 0, 0, -1.0, 1.0, 1.0, 0, 1, 0, 0, 1, -1.0, 
--1.0, -1.0, 0, 0, -1, 1, 1, -1.0, 1.0, -1.0, 0, 0, -1, 1, 0, 1.0, 1.0, -1.0, 0, 0, -1, 0, 0, 1.0, -1.0, 
--1.0, 0, 0, -1, 0, 1, 1.0, -1.0, 1.0, 0, 0, 1, 1, 1, 1.0, 1.0, 1.0, 0, 0, 1, 1, 0, -1.0, 1.0, 1.0, 0, 0, 
+-1.0, -1.0, 1.0, -1, 0, 0, 1, 1,
+-1.0, 1.0, 1.0, -1, 0, 0, 1, 0,
+-1.0, 1.0, -1.0, -1, 0, 0, 0, 0,
+-1.0, -1.0, -1.0, -1, 0, 0, 0, 1,
+1.0, -1.0, -1.0, 1, 0, 0, 1, 1,
+1.0, 1.0, -1.0, 1, 0, 0, 1, 0,
+1.0, 1.0, 1.0, 1, 0, 0, 0, 0, 1.0, -1.0, 1.0, 1, 0, 0, 0, 1, 1.0, -1.0, -1.0, 0, -1, 0, 1, 1, 1.0, -1.0, 1.0, 0,
+-1, 0, 1, 0, -1.0, -1.0, 1.0, 0, -1, 0, 0, 0, -1.0, -1.0, -1.0, 0, -1, 0, 0, 1, 1.0, 1.0, 1.0, 0, 1, 0,
+1, 1, 1.0, 1.0, -1.0, 0, 1, 0, 1, 0, -1.0, 1.0, -1.0, 0, 1, 0, 0, 0, -1.0, 1.0, 1.0, 0, 1, 0, 0, 1, -1.0,
+-1.0, -1.0, 0, 0, -1, 1, 1, -1.0, 1.0, -1.0, 0, 0, -1, 1, 0, 1.0, 1.0, -1.0, 0, 0, -1, 0, 0, 1.0, -1.0,
+-1.0, 0, 0, -1, 0, 1, 1.0, -1.0, 1.0, 0, 0, 1, 1, 1, 1.0, 1.0, 1.0, 0, 0, 1, 1, 0, -1.0, 1.0, 1.0, 0, 0,
 1, 0, 0, -1.0, -1.0, 1.0, 0, 0, 1, 0, 1
  ]
  var faces=[
@@ -286,7 +286,6 @@ mat[12],mat[13],mat[14],mat[15]]
 }
 };
 
-
 var ShaderProgram=function(context, vertexShader, fragmentShader){
  if(vertexShader==null)vertexShader=ShaderProgram.getDefaultVertex();
  if(fragmentShader==null)fragmentShader=ShaderProgram.getDefaultFragment();
@@ -325,7 +324,7 @@ var ShaderProgram=function(context, vertexShader, fragmentShader){
  }
 }
 ShaderProgram.prototype.get=function(name){
- return (!this.actives.hasOwnProperty(name)) ? 
+ return (!this.actives.hasOwnProperty(name)) ?
    null : this.actives[name];
 }
 ShaderProgram.prototype.use=function(){
@@ -496,11 +495,11 @@ Texture.fromImage=function(context,image){
   var texture=context.createTexture();
   context.pixelStorei(context.UNPACK_FLIP_Y_WEBGL, true);
   context.bindTexture(context.TEXTURE_2D, texture);
-  context.texParameteri(context.TEXTURE_2D, 
+  context.texParameteri(context.TEXTURE_2D,
     context.TEXTURE_MAG_FILTER, context.LINEAR);
-  context.texImage2D(context.TEXTURE_2D, 0, 
+  context.texImage2D(context.TEXTURE_2D, 0,
     context.RGBA, context.RGBA, context.UNSIGNED_BYTE, image);
-  context.texParameteri(context.TEXTURE_2D, 
+  context.texParameteri(context.TEXTURE_2D,
     context.TEXTURE_MIN_FILTER, context.NEAREST_MIPMAP_LINEAR);
   context.generateMipmap(context.TEXTURE_2D);
   context.bindTexture(context.TEXTURE_2D, null);
