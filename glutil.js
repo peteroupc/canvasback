@@ -107,12 +107,24 @@ createCube:function(context){
 -1.0, -1.0, -1.0, -1, 0, 0, 0, 1,
 1.0, -1.0, -1.0, 1, 0, 0, 1, 1,
 1.0, 1.0, -1.0, 1, 0, 0, 1, 0,
-1.0, 1.0, 1.0, 1, 0, 0, 0, 0, 1.0, -1.0, 1.0, 1, 0, 0, 0, 1, 1.0, -1.0, -1.0, 0, -1, 0, 1, 1, 1.0, -1.0, 1.0, 0,
--1, 0, 1, 0, -1.0, -1.0, 1.0, 0, -1, 0, 0, 0, -1.0, -1.0, -1.0, 0, -1, 0, 0, 1, 1.0, 1.0, 1.0, 0, 1, 0,
-1, 1, 1.0, 1.0, -1.0, 0, 1, 0, 1, 0, -1.0, 1.0, -1.0, 0, 1, 0, 0, 0, -1.0, 1.0, 1.0, 0, 1, 0, 0, 1, -1.0,
--1.0, -1.0, 0, 0, -1, 1, 1, -1.0, 1.0, -1.0, 0, 0, -1, 1, 0, 1.0, 1.0, -1.0, 0, 0, -1, 0, 0, 1.0, -1.0,
--1.0, 0, 0, -1, 0, 1, 1.0, -1.0, 1.0, 0, 0, 1, 1, 1, 1.0, 1.0, 1.0, 0, 0, 1, 1, 0, -1.0, 1.0, 1.0, 0, 0,
-1, 0, 0, -1.0, -1.0, 1.0, 0, 0, 1, 0, 1
+1.0, 1.0, 1.0, 1, 0, 0, 0, 0, 
+1.0, -1.0, 1.0, 1, 0, 0, 0, 1, 
+1.0, -1.0, -1.0, 0, -1, 0, 1, 1,
+1.0, -1.0, 1.0, 0, -1, 0, 1, 0, 
+-1.0, -1.0, 1.0, 0, -1, 0, 0, 0, 
+-1.0, -1.0, -1.0, 0, -1, 0, 0, 1, 
+1.0, 1.0, 1.0, 0, 1, 0, 1, 1, 
+1.0, 1.0, -1.0, 0, 1, 0, 1, 0, 
+-1.0, 1.0, -1.0, 0, 1, 0, 0, 0, 
+-1.0, 1.0, 1.0, 0, 1, 0, 0, 1, 
+-1.0, -1.0, -1.0, 0, 0, -1, 1, 1, 
+-1.0, 1.0, -1.0, 0, 0, -1, 1, 0, 
+1.0, 1.0, -1.0, 0, 0, -1, 0, 0, 
+1.0, -1.0, -1.0, 0, 0, -1, 0, 1, 
+1.0, -1.0, 1.0, 0, 0, 1, 1, 1,
+1.0, 1.0, 1.0, 0, 0, 1, 1, 0, 
+-1.0, 1.0, 1.0, 0, 0, 1, 0, 0,
+-1.0, -1.0, 1.0, 0, 0, 1, 0, 1
  ]
  var faces=[
   0, 1, 2, 0, 2, 3,
@@ -402,34 +414,40 @@ return "" +
 "mat4 viewWorld=view*world;\n" +
 "gl_Position=projection*viewWorld*positionVec4;\n" +
 "viewPositionVar=vec3(viewWorld*positionVec4);\n" +
-"normalVar=vec3(world*vec4(normal,0.0));\n" +
+"normalVar=normalize(vec3(world*vec4(normal,0.0)));\n" +
 "textureUVVar=textureUV;\n"+
 "}";
 };
 ShaderProgram.getDefaultFragment=function(){
 return "" +
 "precision highp float;\n" +
-"uniform sampler2D sampler;\n" +
-"uniform int useTexture;\n" +
-"uniform vec3 sa;\n" +
-"uniform vec3 sd;\n" +
-"uniform vec3 ss;\n" +
-"uniform vec3 sdir;\n" +
-"uniform vec3 ma;\n" +
-"uniform vec3 md;\n" +
-"uniform vec3 ms;\n" +
-"uniform vec4 color;\n" +
-"uniform float mshin;\n" +
+"uniform sampler2D sampler;\n" + // texture sampler
+"uniform int useTexture;\n" + // use texture sampler rather than solid color if nonzero
+"uniform vec3 sa;\n" + // source light ambient color
+"uniform vec3 sd;\n" + // source light diffuse color
+"uniform vec3 ss;\n" + // source light specular color
+"uniform vec3 sdir;\n" + // source light direction
+"uniform vec3 ma;\n" + // material ambient color (-1 to -1 each component).
+"uniform vec3 md;\n" + // material diffuse color (0-1 each component). Is multiplied by texture/solid color.
+"uniform vec3 ms;\n" + // material specular color (0-1 each comp.).  Affects how intense highlights are.
+"uniform float mshin;\n" + // material shininess (1 or greater).  A higher value results in sharper highlights.
+"uniform vec4 color;\n" + // solid color
 "varying vec3 normalVar;\n" +
 "varying vec3 viewPositionVar;\n" +
 "varying vec2 textureUVVar;\n"+
 "void main(){\n" +
-" vec3 phong=(sa*ma)+(ss*ms*pow(max(dot(reflect(normalize(sdir),normalVar),\n" +
-"    normalize(viewPositionVar)),0.0),mshin))+(sd*md*max(dot(normalVar,sdir),0.0));\n" +
-" vec4 baseColor=(useTexture==0) ? color : texture2D(sampler,textureUVVar);" +
-" gl_FragColor=vec4(phong*vec3(baseColor.r,baseColor.g,baseColor.b),baseColor.a);\n" +
+" vec3 normNormalVar=normalize(normalVar);" +
+" vec3 normSdir=normalize(sdir);" +
+" float diffInt=dot(normNormalVar,normSdir);" +
+" vec4 baseColor=(useTexture==0) ? color : texture2D(sampler,textureUVVar);\n" +
+" vec3 phong=(sa*ma)+(sd*md*baseColor.rgb*max(diffInt,0.0));\n" +
+" if(diffInt>=0.0){\n" +
+"   phong=phong+(ss*ms*pow(max(dot(reflect(-normSdir,normNormalVar),viewPositionVar),0.0),mshin));\n" +
+" }\n"+
+" gl_FragColor=vec4(phong,baseColor.a);\n" +
 "}";
 };
+
 (function(){
 var Materials=function(context, colorUniform, samplerUniform, useTextureUniform){
  this.textures={}
@@ -441,8 +459,13 @@ var Materials=function(context, colorUniform, samplerUniform, useTextureUniform)
 }
 Materials.COLOR = 0;
 Materials.TEXTURE = 1;
-Materials.prototype.getColor=function(color){
- return new SolidColor(this.context,color,this.colorUniform);
+Materials.prototype.getColor=function(r,g,b){
+ if(typeof r=="number" && typeof g=="number" &&
+    typeof b=="number"){
+   return new SolidColor(this.context,[r,g,b],this.colorUniform);
+ }
+ // treat r as a 3-element RGB array
+ return new SolidColor(this.context,r,this.colorUniform);
 }
 Materials.prototype.getTexture=function(name, loadHandler){
  // Get cached texture

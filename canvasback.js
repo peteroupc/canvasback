@@ -211,14 +211,14 @@ CanvasBackground.prototype.drawBack=function(){
   var rgb=this.constructor.hls2rgb(this.hls);
   var uniformValues={};
   // light data
-  uniformValues["sa"]=[4,4,4]; // source ambient color
-  uniformValues["sd"]=[2,2,2]; // source diffuse color
-  uniformValues["ss"]=[0,0,0]; // source specular color
+  uniformValues["sa"]=[0.2,0.2,0.2];
+  uniformValues["sd"]=[1.3,1.3,1.3];
+  uniformValues["ss"]=[1,1,1];
   uniformValues["sdir"]=[0,0,-1]; // directs the light uniformly across all objects on the screen
-  uniformValues["ma"]=[0.2,0.2,0.2]; // material ambient color
-  uniformValues["md"]=[1,1,1]; // material diffuse color
-  uniformValues["ms"]=[1,1,1]; // material specular color
-  uniformValues["mshin"]=[0]; // material shininess
+  uniformValues["ma"]=[0.2,0.2,0.2];
+  uniformValues["md"]=[1.0,1.0,1.0];
+  uniformValues["ms"]=[0.2,0.2,0.2];
+  uniformValues["mshin"]=[1];
   // matrices
   uniformValues["projection"]=GLUtil.mat4identity();
   uniformValues["view"]=GLUtil.mat4identity();
@@ -277,7 +277,8 @@ CanvasBackground.prototype.drawOne=function(){
    var angle=this.constructor.rand(160);
    var vector=[
      (this.constructor.rand(60))/30.0,
-     (this.constructor.rand(60))/30.0,0]
+     (this.constructor.rand(60))/30.0,
+     (this.constructor.rand(60))/30.0]
    var shape=new Shape(this.context,this.cubeMesh);
    shape.setScale(radius,radius,radius);
    shape.setRotation(angle,vector);
