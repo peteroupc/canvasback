@@ -3,6 +3,8 @@ initColorAndDepth:function(context,r,g,b,a,depth,depthFunc){
   context.viewport(0,0,
     context.canvas.width*1.0,context.canvas.height*1.0);
   context.enable(context.DEPTH_TEST);
+  context.enable(context.BLEND);
+  context.blendFunc(context.SRC_ALPHA,context.ONE_MINUS_SRC_ALPHA);
   context.depthFunc((typeof depthFunc=="undefined") ?
      context.LEQUAL : depthFunc);
   context.clearColor(r,g,b, (typeof a=="undefined") ? 1.0 : a);
@@ -72,10 +74,10 @@ callRequestFrame:function(func){
   window.setTimeout(func,17);
  }
 },
-renderShapes:function(context,shapes,position,normal,uv,matrix){
+renderShapes:function(context,shapes,program){
   context.clear(context.COLOR_BUFFER_BIT);
   for(var i=0;i<shapes.length;i++){
-   shapes[i].render(position,normal,uv,matrix);
+   shapes[i].render(program);
   }
   context.flush();
 },
@@ -344,6 +346,7 @@ ShaderProgram.prototype.use=function(){
  for(var i=0;i<this.attributes.length;i++){
   this.context.enableVertexAttribArray(this.attributes[i]);
  }
+ return this;
 }
 ShaderProgram.prototype.setUniforms=function(uniforms){
   for(var i in uniforms){
@@ -355,13 +358,14 @@ ShaderProgram.prototype.setUniforms=function(uniforms){
        this.context.uniformMatrix4fv(this.get(i),false,v);
       } else {
        if(this.uniformTypes[i]==this.context.FLOAT){
-        this.context.uniform1f(this.get(i), v[0]);
+        this.context.uniform1f(this.get(i), (typeof v=="number") ? v : v[0]);
        } else {
-        this.context.uniform1i(this.get(i), v[0]);
+        this.context.uniform1i(this.get(i), (typeof v=="number") ? v : v[0]);
        }
       }
     }
   }
+  return this;
 }
 ShaderProgram._compileShaders=function(context, vertexShader, fragmentShader){
   function compileShader(context, kind, text){
@@ -397,6 +401,24 @@ ShaderProgram._compileShaders=function(context, vertexShader, fragmentShader){
   if(fs!==null)context.deleteShader(fs);
   return program;
 };
+ShaderProgram.prototype.setLightSource=function(light){
+ this.setUniforms({
+ "sdir":light.direction,
+ "sa":light.ambient,
+ "sd":light.diffuse,
+ "ss":light.specular
+ });
+ return this;
+}
+ShaderProgram.prototype.setMaterialShade=function(shade){
+ this.setUniforms({
+ "mshin":shade.shininess,
+ "ma":shade.ambient,
+ "md":shade.diffuse,
+ "ms":shade.specular
+ });
+ return this;
+}
 ShaderProgram.getDefaultVertex=function(){
 return "" +
 "attribute vec3 position;\n" +
@@ -447,6 +469,18 @@ return "" +
 " gl_FragColor=vec4(phong,baseColor.a);\n" +
 "}";
 };
+function MaterialShade(ambient, diffuse, specular,shininess) {
+ this.shininess=(shininess==null) ? 1 : Math.max(1,shininess);
+ this.ambient=ambient||[0,0,0];
+ this.diffuse=diffuse||[1,1,1];
+ this.specular=ambient||[0.2,0.2,0.2];
+}
+function LightSource(direction,ambient, diffuse, specular) {
+ this.direction=direction||[0,0,-1];
+ this.ambient=ambient||[1,1,1];
+ this.diffuse=diffuse||[0.2,0.2,0.2];
+ this.specular=ambient||[0.2,0.2,0.2];
+}
 
 (function(){
 var Materials=function(context, colorUniform, samplerUniform, useTextureUniform){
@@ -470,12 +504,12 @@ Materials.prototype.getColor=function(r,g,b){
 Materials.prototype.getTexture=function(name, loadHandler){
  // Get cached texture
  if(this.textures[name] && this.textures.hasOwnProperty(name)){
-   return this.textures[name];
+   return new Texture(this.textures[name]);
  }
  // Load new texture and cache it
- var tex=new Texture(this.context,name, loadHandler,this.useTextureUniform);
+ var tex=new TextureImage(this.context,name, loadHandler,this.useTextureUniform);
  this.textures[name]=tex;
- return tex;
+ return new Texture(tex);
 }
 var SolidColor=function(context, color, colorUniform, samplerUniform, useTextureUniform){
  this.kind=Materials.COLOR;
@@ -485,16 +519,22 @@ var SolidColor=function(context, color, colorUniform, samplerUniform, useTexture
  this.colorUniform=colorUniform;
 }
 SolidColor.prototype.bind=function(){
-  if(this.textureUniform!==null){
+  if(this.useTextureUniform!==null){
    this.context.uniform1i(this.useTextureUniform, 0);
   }
   this.context.uniform4f(this.colorUniform,this.color[0],
     this.color[1],this.color[2],this.color[3]);
 }
-var Texture=function(context, name, loadHandler, useTextureUniform){
+var Texture=function(texture){
+ this.texture=texture;
+ this.kind=Materials.TEXTURE;
+}
+Texture.prototype.bind=function(){
+ this.texture.bind();
+}
+var TextureImage=function(context, name, loadHandler, useTextureUniform){
   this.texture=null;
   this.useTextureUniform=useTextureUniform;
-  this.kind=Materials.TEXTURE;
   this.context=context;
   this.name=name;
   var thisObj=this;
@@ -506,9 +546,11 @@ var Texture=function(context, name, loadHandler, useTextureUniform){
   };
   image.src=name;
 }
-Texture.prototype.bind=function(){
+TextureImage.prototype.bind=function(){
    if (this.texture!==null) {
-      this.context.uniform1i(this.useTextureUniform, 1);
+      if(this.useTextureUniform!==null){
+        this.context.uniform1i(this.useTextureUniform, 1);
+      }
       this.context.activeTexture(this.context.TEXTURE0);
       this.context.bindTexture(this.context.TEXTURE_2D,
         this.texture);
@@ -574,46 +616,6 @@ Shape.prototype._bind=function(context, vertfaces,
 Shape.prototype.setMaterial=function(material){
  this.material=material;
 }
-Shape.prototype.getUniform=function(uniform){
-  for(var i=0;i<this.uniforms.length;i++){
-   if(this.uniforms[i][0]==uniform){
-    return this.uniforms[i].slice(1,this.uniforms[i].length);
-   }
-  }
-  return null;
-}
-Shape.prototype.addUniform3f=function(uniform,a,b,c){
-  for(var i=0;i<this.uniforms.length;i++){
-   if(this.uniforms[i][0]==uniform){
-    this.uniforms[i][1]=a;
-    this.uniforms[i][2]=b;
-    this.uniforms[i][3]=c;
-    return;
-   }
-  }
-  this.uniforms.push([uniform,a,b,c]);
-}
-Shape.prototype.addUniform1f=function(uniform,a){
-  for(var i=0;i<this.uniforms.length;i++){
-   if(this.uniforms[i][0]==uniform){
-    this.uniforms[i][1]=a;
-    return;
-   }
-  }
-  this.uniforms.push([uniform,a]);
-}
-Shape.prototype.addUniform4f=function(uniform,a,b,c,d){
-  for(var i=0;i<this.uniforms.length;i++){
-   if(this.uniforms[i][0]==uniform){
-    this.uniforms[i][1]=a;
-    this.uniforms[i][2]=b;
-    this.uniforms[i][3]=c;
-    this.uniforms[i][4]=d;
-    return;
-   }
-  }
-  this.uniforms.push([uniform,a,b,c,d]);
-}
 Shape.prototype._calcMatrix=function(){
   this._matrixDirty=false;
   this.matrix=GLUtil.mat4scaledVec3(this.scale);
@@ -650,26 +652,19 @@ Shape.prototype.setRotation=function(angle, vector){
   this._matrixDirty=true;
   return this;
 }
-Shape.prototype.render=function(attribPosition, attribNormal, attribUV, uniformMatrix){
+Shape.prototype.render=function(program){
   // Bind vertex attributes
   this._bind(this.context,this.vertfaces,
-    attribPosition, attribNormal,attribUV);
-  // Set uniforms
-  for(var i=0;i<this.uniforms.length;i++){
-    var uniform=this.uniforms[i];
-    if(uniform.length==4){
-      this.context.uniform3f(uniform[0],uniform[1],uniform[2],uniform[3]);
-    } else if(uniform.length==5){
-      this.context.uniform4f(uniform[0],uniform[1],uniform[2],uniform[3],uniform[4]);
-    } else if(uniform.length==2){
-      this.context.uniform1f(uniform[0],uniform[1]);
-    }
-  }
+    program.get("position"),
+    program.get("normal"),
+    program.get("textureUV"));
   // Set material (texture or color)
   if(this.material){
+    // TODO: bind with program
    this.material.bind();
   }
-  // Set uniform matrix
+  // Set world matrix
+  var uniformMatrix=program.get("world");
   if(uniformMatrix!==null){
    if(this._matrixDirty){
     this._calcMatrix();

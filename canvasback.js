@@ -211,25 +211,15 @@ CanvasBackground.prototype.drawBack=function(){
   var rgb=this.constructor.hls2rgb(this.hls);
   var uniformValues={};
   // light data
-  uniformValues["sa"]=[0.2,0.2,0.2];
-  uniformValues["sd"]=[1.3,1.3,1.3];
-  uniformValues["ss"]=[1,1,1];
-  uniformValues["sdir"]=[0,0,-1]; // directs the light uniformly across all objects on the screen
-  uniformValues["ma"]=[0.2,0.2,0.2];
-  uniformValues["md"]=[1.0,1.0,1.0];
-  uniformValues["ms"]=[0.2,0.2,0.2];
-  uniformValues["mshin"]=[1];
+  var lightData=new LightSource([0,0,-1],[0.2,0.2,0.2],[1.3,1.3,1.3],[1,1,1]);
+  var materialData=new MaterialShade([0.2,0.2,0.2],[1.0,1.0,1.0],[0.2,0.2,0.2],1);
   // matrices
   uniformValues["projection"]=GLUtil.mat4identity();
   uniformValues["view"]=GLUtil.mat4identity();
   this.uniforms=uniformValues;
-  this.program=new ShaderProgram(this.context,
-    ShaderProgram.getDefaultVertex(),
-    ShaderProgram.getDefaultFragment());
-  this.position=this.program.get("position");
-  this.modelMatrix=this.program.get("world");
-  this.attribUV=this.program.get("textureUV");
-  this.attribNormal=this.program.get("normal");
+  this.program=new ShaderProgram(this.context);
+  this.program.setLightSource(lightData);
+  this.program.setMaterialShade(materialData);
   this.materials=new Materials(this.context,
     this.program.get("color"),
     this.program.get("sampler"),
@@ -254,9 +244,7 @@ CanvasBackground.prototype.animate=function(){
    this.drawOne();
   }
   if(this.use3d){
-   GLUtil.renderShapes(this.context,
-    this.shapes,this.position,
-    this.attribNormal, this.attribUV, this.modelMatrix);
+   GLUtil.renderShapes(this.context,this.shapes,this.program);
   }
 }
 CanvasBackground.prototype.drawOne=function(){
