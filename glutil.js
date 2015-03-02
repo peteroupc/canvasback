@@ -1,3 +1,11 @@
+/*
+Written by Peter O. in 2015.
+
+Any copyright is dedicated to the Public Domain.
+http://creativecommons.org/publicdomain/zero/1.0/
+If you like this, you should donate to Peter O.
+at: http://upokecenter.dreamhosters.com/articles/donate-now-2/
+*/
 var GLUtil={
 renderLoop:function(func){
   func();
@@ -10,22 +18,23 @@ renderLoop:function(func){
 get3DOr2DContext:function(canvasElement){
   if(!canvasElement)return null;
   var context=null;
-  try { context=canvasElement.getContext("webgl", {antialias: true});
+  var options={antialias:true};
+  try { context=canvasElement.getContext("webgl", options);
   } catch(e) { context=null; }
   if(!context){
-    try { context=canvasElement.getContext("experimental-webgl", {antialias: true});
+    try { context=canvasElement.getContext("experimental-webgl", options);
     } catch(e) { context=null; }
   }
   if(!context){
-    try { context=canvasElement.getContext("moz-webgl", {antialias: true});
+    try { context=canvasElement.getContext("moz-webgl", options);
     } catch(e) { context=null; }
   }
   if(!context){
-    try { context=canvasElement.getContext("webkit-3d", {antialias: true});
+    try { context=canvasElement.getContext("webkit-3d", options);
     } catch(e) { context=null; }
   }
   if(!context){
-    try { context=canvasElement.getContext("2d", {antialias: true});
+    try { context=canvasElement.getContext("2d", options);
     } catch(e) { context=null; }
   }
   return context;
@@ -37,7 +46,7 @@ get3DContext:function(canvasElement,err){
   if(!c && window.WebGLShader){
     errmsg="Failed to initialize graphics support required by this page.";
   } else if(window.WebGLShader && !GLUtil.is3DContext(c)){
-    errmsg="This page requires WebGL, but it failed to start. Your computer might not support Webcontext.";
+    errmsg="This page requires WebGL, but it failed to start. Your computer might not support WebGL.";
   } else if(!c || !GLUtil.is3DContext(c)){
     errmsg="This page requires a WebGL-supporting browser.";
   }
@@ -297,7 +306,6 @@ var ShaderProgram=function(context, vertexShader, fragmentShader){
     name=attributeInfo.name;
     var attr=context.getAttribLocation(this.program, name);
     if(attr>=0){
-     context.enableVertexAttribArray(attr);
      this.attributes.push(attr);
      ret[name]=attr;
     }
@@ -380,6 +388,7 @@ ShaderProgram._compileShaders=function(context, vertexShader, fragmentShader){
   return program;
 };
 ShaderProgram.prototype.setLightSource=function(light){
+ if(!light)return this;
  this.setUniforms({
  "sdir":light.direction,
  "sa":light.ambient,
@@ -389,6 +398,7 @@ ShaderProgram.prototype.setLightSource=function(light){
  return this;
 }
 ShaderProgram.prototype.setMaterialShade=function(shade){
+ if(!shade)return this;
  this.setUniforms({
  "mshin":shade.shininess,
  "ma":shade.ambient,
@@ -491,8 +501,13 @@ Materials.prototype.getTexture=function(name, loadHandler){
 }
 var SolidColor=function(context, color){
  this.kind=Materials.COLOR;
+ this.material=null;
  this.color=[color[0],color[1],color[2],(color[3]==null ? 1.0 : color[3])];
  this.context=context;
+}
+SolidColor.prototype.setShading=function(material){
+ this.material=material;
+ return this;
 }
 SolidColor.prototype.bind=function(program){
   var useTextureUniform=program.get("useTexture");
@@ -501,13 +516,19 @@ SolidColor.prototype.bind=function(program){
   }
   this.context.uniform4f(program.get("color"),this.color[0],
     this.color[1],this.color[2],this.color[3]);
+  program.setMaterialShade(this.material);
 }
 var Texture=function(texture){
  this.texture=texture;
+ this.material=null;
  this.kind=Materials.TEXTURE;
 }
-Texture.prototype.bind=function(){
- this.texture.bind();
+Texture.prototype.bind=function(program){
+ this.texture.bind(program);
+}
+Texture.prototype.setShading=function(material){
+ this.material=material;
+ return this;
 }
 var TextureImage=function(context, name, loadHandler){
   this.texture=null;
@@ -522,7 +543,7 @@ var TextureImage=function(context, name, loadHandler){
   };
   image.src=name;
 }
-TextureImage.prototype.bind=function(){
+TextureImage.prototype.bind=function(program){
    if (this.texture!==null) {
       var useTextureUniform=program.get("useTexture");
       if(useTextureUniform!==null){
@@ -532,6 +553,7 @@ TextureImage.prototype.bind=function(){
       this.context.bindTexture(this.context.TEXTURE_2D,
         this.texture);
     }
+    program.setMaterialShade(this.material);
 }
 Texture.fromImage=function(context,image){
   var texture=context.createTexture();
@@ -629,29 +651,34 @@ function Shape(context,vertfaces){
 Shape.VEC2D=2;
 Shape.VEC3D=3;
 Shape.VEC3DNORMAL=5;
+Shape._vertexAttrib=function(context, attrib, size, type, stride, offset){
+  if(attrib!==null){
+    context.enableVertexAttribArray(attrib);
+    context.vertexAttribPointer(attrib,size,type,false,stride,offset);
+  }
+}
 Shape.prototype._bind=function(context, vertfaces,
   attribPosition, attribNormal, attribUV){
   context.bindBuffer(context.ARRAY_BUFFER, vertfaces.verts);
   context.bindBuffer(context.ELEMENT_ARRAY_BUFFER, vertfaces.faces);
   var format=vertfaces.format;
   if(format==Shape.VEC3DNORMAL){
-  context.vertexAttribPointer(attribPosition, 3,
-    context.FLOAT, false, 6*4, 0);
-  context.vertexAttribPointer(attribNormal, 3,
-    context.FLOAT, false, 6*4, 3*4);
+   Shape._vertexAttrib(context,attribPosition, 3, context.FLOAT, 6*4, 0);
+   Shape._vertexAttrib(context,attribNormal, 3,
+    context.FLOAT, 6*4, 3*4);
   } else if(format==Shape.VEC3DNORMALUV){
-  context.vertexAttribPointer(attribPosition, 3,
-    context.FLOAT, false, 8*4, 0);
-  context.vertexAttribPointer(attribNormal, 3,
-    context.FLOAT, false, 8*4, 3*4);
-  context.vertexAttribPointer(attribUV, 2,
-    context.FLOAT, false, 8*4, 6*4);
+   Shape._vertexAttrib(context,attribPosition, 3,
+    context.FLOAT, 8*4, 0);
+   Shape._vertexAttrib(context,attribNormal, 3,
+    context.FLOAT, 8*4, 3*4);
+   Shape._vertexAttrib(context,attribUV, 2,
+    context.FLOAT, 8*4, 6*4);
   } else if(format==Shape.VEC2D){
-   context.vertexAttribPointer(attribPosition, 2,
-     context.FLOAT, false, 2*4, 0);
+   Shape._vertexAttrib(context,attribPosition, 2,
+     context.FLOAT, 2*4, 0);
   } else if(format==Shape.VEC3D){
-   context.vertexAttribPointer(attribPosition, 3,
-     context.FLOAT, false, 3*4, 0);
+   Shape._vertexAttrib(context,attribPosition, 3,
+     context.FLOAT, 3*4, 0);
   }
 }
 Shape.prototype.setMaterial=function(material){

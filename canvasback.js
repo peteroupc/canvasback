@@ -213,11 +213,10 @@ CanvasBackground.prototype.drawBack=function(){
   var uniformValues={};
   // light data
   var lightData=new LightSource([0,0,-1],[0.2,0.2,0.2],[1.3,1.3,1.3],[1,1,1]);
-  var materialData=new MaterialShade([0.2,0.2,0.2],[1.0,1.0,1.0],[0.2,0.2,0.2],1);
+  this.materialData=new MaterialShade([0.2,0.2,0.2],[1.0,1.0,1.0],[0.2,0.2,0.2],1);
   this.cubeMesh=GLUtil.createCube(this.context);
   this.scene=new Scene3D(this.context)
     .setLightSource(lightData)
-    .setMaterialShade(materialData)
     .setClearColor(rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0, 1.0);
  } else {
   this.context.fillStyle=this.constructor.hls2hex(this.hls);
@@ -258,7 +257,7 @@ CanvasBackground.prototype.drawOne=function(){
    shape.setScale(radius,radius,radius);
    shape.setRotation(angle,vector);
    shape.setPosition(x,y,z);
-   shape.setMaterial(this.scene.getColor(rgb));
+   shape.setMaterial(this.scene.getColor(rgb).setShading(this.materialData));
    this.scene.shapes.push(shape);
  } else {
   var rect=[this.constructor.rand(this.width+30)-30,
