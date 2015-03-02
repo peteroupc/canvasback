@@ -58,6 +58,7 @@ var CanvasBackground=function(color){
          "position":"fixed"});
   $("body").append(canvas);
   this.use3d=true;
+  this.count=0;
   var canvasElement=canvas.get(0);
   this.context=GLUtil.get3DOr2DContext(canvasElement);
   this.use3d=GLUtil.is3DContext(this.context);
@@ -213,25 +214,11 @@ CanvasBackground.prototype.drawBack=function(){
   // light data
   var lightData=new LightSource([0,0,-1],[0.2,0.2,0.2],[1.3,1.3,1.3],[1,1,1]);
   var materialData=new MaterialShade([0.2,0.2,0.2],[1.0,1.0,1.0],[0.2,0.2,0.2],1);
-  // matrices
-  uniformValues["projection"]=GLUtil.mat4identity();
-  uniformValues["view"]=GLUtil.mat4identity();
-  this.uniforms=uniformValues;
-  this.program=new ShaderProgram(this.context);
-  this.program.setLightSource(lightData);
-  this.program.setMaterialShade(materialData);
-  this.materials=new Materials(this.context,
-    this.program.get("color"),
-    this.program.get("sampler"),
-    this.program.get("useTexture"));
   this.cubeMesh=GLUtil.createCube(this.context);
-  this.fadingIn=[];
-  this.fadingOut=[];
-  this.count=0;
-  GLUtil.initColorAndDepth(this.context,
-    rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0, 1.0,
-    999999.0, this.context.LEQUAL);
-  this.program.setUniforms(uniformValues);
+  this.scene=new Scene3D(this.context)
+    .setLightSource(lightData)
+    .setMaterialShade(materialData)
+    .setClearColor(rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0, 1.0);
  } else {
   this.context.fillStyle=this.constructor.hls2hex(this.hls);
   this.context.fillRect(0,0,this.width,this.height);
@@ -244,7 +231,7 @@ CanvasBackground.prototype.animate=function(){
    this.drawOne();
   }
   if(this.use3d){
-   GLUtil.renderShapes(this.context,this.shapes,this.program);
+   this.scene.render();
   }
 }
 CanvasBackground.prototype.drawOne=function(){
@@ -252,7 +239,7 @@ CanvasBackground.prototype.drawOne=function(){
  if(this.use3d){
   if(this.shapes.length>300){
    // Delete the oldest shape generated
-   var lastShape=this.shapes.shift();
+   this.scene.shapes.shift();
   }
   var x=(this.constructor.rand(2000)/1000.0)-1.0;
   var y=(this.constructor.rand(2000)/1000.0)-1.0;
@@ -271,8 +258,8 @@ CanvasBackground.prototype.drawOne=function(){
    shape.setScale(radius,radius,radius);
    shape.setRotation(angle,vector);
    shape.setPosition(x,y,z);
-   shape.setMaterial(this.materials.getColor(rgb));
-   this.shapes.push(shape);
+   shape.setMaterial(this.scene.getColor(rgb));
+   this.scene.shapes.push(shape);
  } else {
   var rect=[this.constructor.rand(this.width+30)-30,
     this.constructor.rand(this.height+30)-30,

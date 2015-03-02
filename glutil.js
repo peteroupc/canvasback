@@ -1,19 +1,4 @@
 var GLUtil={
-initColorAndDepth:function(context,r,g,b,a,depth,depthFunc){
-  context.viewport(0,0,
-    context.canvas.width*1.0,context.canvas.height*1.0);
-  context.enable(context.DEPTH_TEST);
-  context.enable(context.BLEND);
-  context.blendFunc(context.SRC_ALPHA,context.ONE_MINUS_SRC_ALPHA);
-  context.depthFunc((typeof depthFunc=="undefined") ?
-     context.LEQUAL : depthFunc);
-  context.clearColor(r,g,b, (typeof a=="undefined") ? 1.0 : a);
-  context.clearDepth((typeof depth=="undefined") ?
-     999999 : depthFunc);
-  context.clear(
-    context.COLOR_BUFFER_BIT |
-    context.DEPTH_BUFFER_BIT);
-},
 renderLoop:function(func){
   func();
   var selfRefFunc=function(){
@@ -73,13 +58,6 @@ callRequestFrame:function(func){
  } else {
   window.setTimeout(func,17);
  }
-},
-renderShapes:function(context,shapes,program){
-  context.clear(context.COLOR_BUFFER_BIT);
-  for(var i=0;i<shapes.length;i++){
-   shapes[i].render(program);
-  }
-  context.flush();
 },
 createVerticesAndFaces:function(context, vertices, faces, format){
  var vertbuffer=context.createBuffer();
@@ -483,12 +461,12 @@ function LightSource(direction,ambient, diffuse, specular) {
 }
 
 (function(){
-var Materials=function(context, colorUniform, samplerUniform, useTextureUniform){
+var Materials=function(context, program){
  this.textures={}
  this.context=context;
- this.useTextureUniform=useTextureUniform;
- this.samplerUniform=samplerUniform;
- this.colorUniform=colorUniform;
+ this.useTextureUniform=program.get("color");
+ this.samplerUniform=program.get("sampler");
+ this.colorUniform=program.get("useTexture");
  this.context.uniform1i(this.samplerUniform,0);
 }
 Materials.COLOR = 0;
@@ -511,18 +489,17 @@ Materials.prototype.getTexture=function(name, loadHandler){
  this.textures[name]=tex;
  return new Texture(tex);
 }
-var SolidColor=function(context, color, colorUniform, samplerUniform, useTextureUniform){
+var SolidColor=function(context, color){
  this.kind=Materials.COLOR;
  this.color=[color[0],color[1],color[2],(color[3]==null ? 1.0 : color[3])];
  this.context=context;
- this.samplerUniform=samplerUniform;
- this.colorUniform=colorUniform;
 }
-SolidColor.prototype.bind=function(){
-  if(this.useTextureUniform!==null){
-   this.context.uniform1i(this.useTextureUniform, 0);
+SolidColor.prototype.bind=function(program){
+  var useTextureUniform=program.get("useTexture");
+  if(useTextureUniform!==null){
+   this.context.uniform1i(useTextureUniform, 0);
   }
-  this.context.uniform4f(this.colorUniform,this.color[0],
+  this.context.uniform4f(program.get("color"),this.color[0],
     this.color[1],this.color[2],this.color[3]);
 }
 var Texture=function(texture){
@@ -532,9 +509,8 @@ var Texture=function(texture){
 Texture.prototype.bind=function(){
  this.texture.bind();
 }
-var TextureImage=function(context, name, loadHandler, useTextureUniform){
+var TextureImage=function(context, name, loadHandler){
   this.texture=null;
-  this.useTextureUniform=useTextureUniform;
   this.context=context;
   this.name=name;
   var thisObj=this;
@@ -548,8 +524,9 @@ var TextureImage=function(context, name, loadHandler, useTextureUniform){
 }
 TextureImage.prototype.bind=function(){
    if (this.texture!==null) {
-      if(this.useTextureUniform!==null){
-        this.context.uniform1i(this.useTextureUniform, 1);
+      var useTextureUniform=program.get("useTexture");
+      if(useTextureUniform!==null){
+        this.context.uniform1i(useTextureUniform, 1);
       }
       this.context.activeTexture(this.context.TEXTURE0);
       this.context.bindTexture(this.context.TEXTURE_2D,
@@ -572,6 +549,70 @@ Texture.fromImage=function(context,image){
 }
 window["Materials"]=Materials;
 })(window);
+
+function Scene3D(context){
+ this.context=context;
+ this.context.viewport(0,0,
+    this.context.canvas.width*1.0,this.context.canvas.height*1.0);
+ this.program=new ShaderProgram(context);
+ this.shapes=[];
+ this.clearColor=[0,0,0,0];
+ this.materials=new Materials(context,this.program);
+ this.context.enable(context.BLEND);
+ this.context.blendFunc(context.SRC_ALPHA,context.ONE_MINUS_SRC_ALPHA);
+ this.setProjectionMatrix(GLUtil.mat4identity())
+    .setViewMatrix(GLUtil.mat4identity())
+    .setLightSource(new LightSource())
+    .setMaterialShade(new MaterialShade());
+ this.context.enable(this.context.DEPTH_TEST);
+ this.context.depthFunc(this.context.LEQUAL);
+ this.context.clearColor(0,0,0,1.0);
+ this.context.clearDepth(999999);
+ this.context.clear(
+    this.context.COLOR_BUFFER_BIT |
+    this.context.DEPTH_BUFFER_BIT);
+}
+Scene3D.prototype.setPerspective=function(fov, near, far){
+ this.setProjectionMatrix(GLUtil.mat4perspective(fov,
+   this.context.viewportWidth*1.0/this.context.viewportHeight,near,far));
+}
+Scene3D.prototype.setClearColor=function(r,g,b,a){
+  this.context.clearColor(r,g,b,(typeof a=="undefined") ? 1.0 : a);
+  return this;
+}
+Scene3D.prototype.getColor=function(r,g,b,a){
+ return this.materials.getColor(r,g,b,a);
+}
+Scene3D.prototype.getTexture=function(name){
+ return this.materials.getTexture(name);
+}
+Scene3D.prototype.setProjectionMatrix=function(matrix){
+ this.program.setUniforms({
+ "projection":matrix
+ });
+ return this;
+}
+Scene3D.prototype.setViewMatrix=function(matrix){
+ this.program.setUniforms({
+ "view":matrix
+ });
+ return this;
+}
+Scene3D.prototype.setMaterialShade=function(shade){
+ this.program.setMaterialShade(shade);
+ return this;
+}
+Scene3D.prototype.setLightSource=function(light){
+ this.program.setLightSource(light);
+ return this;
+}
+Scene3D.prototype.render=function(){
+  this.context.clear(this.context.COLOR_BUFFER_BIT);
+  for(var i=0;i<this.shapes.length;i++){
+   this.shapes[i].render(this.program);
+  }
+  this.context.flush();
+}
 
 function Shape(context,vertfaces){
   this.vertfaces=vertfaces;
@@ -660,8 +701,7 @@ Shape.prototype.render=function(program){
     program.get("textureUV"));
   // Set material (texture or color)
   if(this.material){
-    // TODO: bind with program
-   this.material.bind();
+   this.material.bind(program);
   }
   // Set world matrix
   var uniformMatrix=program.get("world");
