@@ -37,6 +37,10 @@ get3DOr2DContext:function(canvasElement){
     try { context=canvasElement.getContext("2d", options);
     } catch(e) { context=null; }
   }
+  if(GLUtil.is3DContext(context)){
+   context.getExtension("OES_element_index_uint");
+   context.getExtension("EXT_texture_filter_anisotropic");
+  }
   return context;
 },
 get3DContext:function(canvasElement,err){
@@ -89,41 +93,8 @@ createVerticesAndFaces:function(context, vertices, faces, format){
 },
 createCube:function(context){
  // Position X, Y, Z, normal NX, NY, NZ, texture U, V
- var vertices=[
--1.0, -1.0, 1.0, -1, 0, 0, 1, 1,
--1.0, 1.0, 1.0, -1, 0, 0, 1, 0,
--1.0, 1.0, -1.0, -1, 0, 0, 0, 0,
--1.0, -1.0, -1.0, -1, 0, 0, 0, 1,
-1.0, -1.0, -1.0, 1, 0, 0, 1, 1,
-1.0, 1.0, -1.0, 1, 0, 0, 1, 0,
-1.0, 1.0, 1.0, 1, 0, 0, 0, 0,
-1.0, -1.0, 1.0, 1, 0, 0, 0, 1,
-1.0, -1.0, -1.0, 0, -1, 0, 1, 1,
-1.0, -1.0, 1.0, 0, -1, 0, 1, 0,
--1.0, -1.0, 1.0, 0, -1, 0, 0, 0,
--1.0, -1.0, -1.0, 0, -1, 0, 0, 1,
-1.0, 1.0, 1.0, 0, 1, 0, 1, 1,
-1.0, 1.0, -1.0, 0, 1, 0, 1, 0,
--1.0, 1.0, -1.0, 0, 1, 0, 0, 0,
--1.0, 1.0, 1.0, 0, 1, 0, 0, 1,
--1.0, -1.0, -1.0, 0, 0, -1, 1, 1,
--1.0, 1.0, -1.0, 0, 0, -1, 1, 0,
-1.0, 1.0, -1.0, 0, 0, -1, 0, 0,
-1.0, -1.0, -1.0, 0, 0, -1, 0, 1,
-1.0, -1.0, 1.0, 0, 0, 1, 1, 1,
-1.0, 1.0, 1.0, 0, 0, 1, 1, 0,
--1.0, 1.0, 1.0, 0, 0, 1, 0, 0,
--1.0, -1.0, 1.0, 0, 0, 1, 0, 1
- ]
- var faces=[
-  0, 1, 2, 0, 2, 3,
-  4, 5, 6, 4, 6, 7,
-  8, 9, 10, 8, 10, 11,
-  12, 13, 14, 12, 14,
-  15, 16, 17, 18, 16,
-  18, 19, 20, 21, 22,
-  20, 22, 23
- ]
+ var vertices=[-1.0,-1.0,1.0,1.0,0.0,0.0,1.0,1.0,-1.0,1.0,1.0,1.0,0.0,0.0,1.0,0.0,-1.0,1.0,-1.0,1.0,0.0,0.0,0.0,0.0,-1.0,-1.0,-1.0,1.0,0.0,0.0,0.0,1.0,1.0,-1.0,-1.0,-1.0,0.0,0.0,1.0,1.0,1.0,1.0,-1.0,-1.0,0.0,0.0,1.0,0.0,1.0,1.0,1.0,-1.0,0.0,0.0,0.0,0.0,1.0,-1.0,1.0,-1.0,0.0,0.0,0.0,1.0,1.0,-1.0,-1.0,0.0,1.0,0.0,1.0,1.0,1.0,-1.0,1.0,0.0,1.0,0.0,1.0,0.0,-1.0,-1.0,1.0,0.0,1.0,0.0,0.0,0.0,-1.0,-1.0,-1.0,0.0,1.0,0.0,0.0,1.0,1.0,1.0,1.0,0.0,-1.0,0.0,1.0,1.0,1.0,1.0,-1.0,0.0,-1.0,0.0,1.0,0.0,-1.0,1.0,-1.0,0.0,-1.0,0.0,0.0,0.0,-1.0,1.0,1.0,0.0,-1.0,0.0,0.0,1.0,-1.0,-1.0,-1.0,0.0,0.0,1.0,1.0,1.0,-1.0,1.0,-1.0,0.0,0.0,1.0,1.0,0.0,1.0,1.0,-1.0,0.0,0.0,1.0,0.0,0.0,1.0,-1.0,-1.0,0.0,0.0,1.0,0.0,1.0,1.0,-1.0,1.0,0.0,0.0,-1.0,1.0,1.0,1.0,1.0,1.0,0.0,0.0,-1.0,1.0,0.0,-1.0,1.0,1.0,0.0,0.0,-1.0,0.0,0.0,-1.0,-1.0,1.0,0.0,0.0,-1.0,0.0,1.0]
+ var faces=[0,1,2,0,2,3,4,5,6,4,6,7,8,9,10,8,10,11,12,13,14,12,14,15,16,17,18,16,18,19,20,21,22,20,22,23]
  return GLUtil.createVerticesAndFaces(
    context,vertices,faces,Shape.VEC3DNORMALUV);
 },
@@ -584,8 +555,8 @@ function Scene3D(context){
  this.context.blendFunc(context.SRC_ALPHA,context.ONE_MINUS_SRC_ALPHA);
  this.setProjectionMatrix(GLUtil.mat4identity())
     .setViewMatrix(GLUtil.mat4identity())
-    .setLightSource(new LightSource())
-    .setMaterialShade(new MaterialShade());
+    .setLightSource(new LightSource());
+ this.program.setMaterialShade(new MaterialShade());
  this.context.enable(this.context.DEPTH_TEST);
  this.context.depthFunc(this.context.LEQUAL);
  this.context.clearColor(0,0,0,1.0);
@@ -618,10 +589,6 @@ Scene3D.prototype.setViewMatrix=function(matrix){
  this.program.setUniforms({
  "view":matrix
  });
- return this;
-}
-Scene3D.prototype.setMaterialShade=function(shade){
- this.program.setMaterialShade(shade);
  return this;
 }
 Scene3D.prototype.setLightSource=function(light){
