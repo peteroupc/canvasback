@@ -98,6 +98,107 @@ createCube:function(context){
  return GLUtil.createVerticesAndFaces(
    context,vertices,faces,Shape.VEC3DNORMALUV);
 },
+recalcNormals:function(vertices,faces){
+  for(var i=0;i<vertices.length;i+=8){
+    vertices[i+3]=0.0
+    vertices[i+4]=0.0
+    vertices[i+5]=0.0
+  }
+  for(var i=0;i<vertices.length;i+=3){
+    var v1=faces[i]*8
+    var v2=faces[i+1]*8
+    var v3=faces[i+2]*8
+    var n1=[vertices[v2]-vertices[v3],vertices[v2+1]-vertices[v3+1],vertices[v2+2]-vertices[v3+2]]
+    var n2=[vertices[v1]-vertices[v3],vertices[v1+1]-vertices[v3+1],vertices[v1+2]-vertices[v3+2]]
+    // cross multiply n1 and n2
+    var x=n1[1]*n2[2]-n1[2]*n2[1]
+    var y=n1[2]*n2[0]-n1[0]*n2[2]
+    var z=n1[0]*n2[1]-n1[1]*n2[0]
+    // normalize xyz vector
+    len=Math.sqrt(x*x+y*y+z*z);
+    if(len!=0){
+      len=1.0/len;
+      n1[0]=x*len;
+      n1[1]=y*len;
+      n1[2]=z*len;
+      // add normalized normal to each vertex of the face
+      vertices[v1+3]+=n1[0]
+      vertices[v1+4]+=n1[1]
+      vertices[v1+5]+=n1[2]
+      vertices[v2+3]+=n1[0]
+      vertices[v2+4]+=n1[1]
+      vertices[v2+5]+=n1[2]
+      vertices[v3+3]+=n1[0]
+      vertices[v3+4]+=n1[1]
+      vertices[v3+5]+=n1[2]
+    }
+  }
+  // Normalize each normal of the vertex
+  for(var i=0;i<vertices.length;i+=8){
+    var x=vertices[i+3];
+    var y=vertices[i+4];
+    var z=vertices[i+5];
+    len=Math.sqrt(x*x+y*y+z*z);
+    if(len){
+      len=1.0/len;
+      vertices[i+3]*=len;
+      vertices[i+4]*=len;
+      vertices[i+5]*=len;
+    }
+  }
+},
+createSphere:function(context,radius,count) {
+ if(typeof radius=="undefined")radius=1.0;
+ if(typeof div=="undefined")count=5;
+ function pushMidpoint(points,a,b){
+  var newpt=GLUtil.vec3normInPlace([
+    (points[a]+points[b])/2.0,
+    (points[a+1]+points[b+1])/2.0,
+    (points[a+2]+points[b+2])/2.0]);
+  var uvx=(points[a+6]+points[b+6])/2;
+  var uvy=(points[a+7]+points[b+7])/2;
+  points.push(newpt[0],newpt[1],newpt[2],0,0,0,uvx,uvy);
+ }
+ var t=0.5773502691896258
+ var points=[t,t,t,0,0,0,0,0,
+  -t,-t,t,0,0,0,0,0,
+  -t,t,-t,0,0,0,0,0,
+  t,-t,-t,0,0,0,0,0];
+ var tris=[0,1,3,0,2,1,3,2,0,2,3,1];
+ for(var i=0;i<count;i++){
+  var facesCount=tris.length;
+  for(var j=0;j<facesCount;j+=3){
+   var t1=tris[j];
+   var t2=tris[j+1];
+   var t3=tris[j+2];
+   var point1=tris[j]*8;
+   var point2=tris[j+1]*8;
+   var point3=tris[j+2]*8;
+   var pointIndex=points.length/8;
+   pushMidpoint(points,point1,point2);
+   pushMidpoint(points,point2,point3);
+   pushMidpoint(points,point3,point1);
+   tris[j]=pointIndex;
+   tris[j+1]=pointIndex+1;
+   tris[j+2]=pointIndex+2;
+   tris.push(
+    t1,pointIndex,pointIndex+2,
+    t2,pointIndex+1,pointIndex,
+    t3,pointIndex+2,pointIndex+1);
+  }  
+ }
+ if(radius!=1.0){
+  // Multiply vertices by the given radius
+  for(var i=0;i<points.length;i+=8){
+   points[i]*=radius;
+   points[i+1]*=radius;
+   points[i+2]*=radius;
+  }
+ }
+ GLUtil.recalcNormals(points,tris);
+ return GLUtil.createVerticesAndFaces(
+   context,points,tris,Shape.VEC3DNORMALUV);
+},
 vec3cross:function(a,b){
 return [a[1]*b[2]-a[2]*b[1],
  a[2]*b[0]-a[0]*b[2],
@@ -134,6 +235,7 @@ vec3normInPlace:function(vec){
   vec[1]*=len;
   vec[2]*=len;
  }
+ return vec;
 },
 vec3norm:function(vec){
  var ret=[vec[0],vec[1],vec[2]]
@@ -527,6 +629,13 @@ TextureImage.prototype.bind=function(program){
     program.setMaterialShade(this.material);
 }
 Texture.fromImage=function(context,image){
+  function isPowerOfTwo(a){
+   if(Math.floor(a)!=a || a<=0)return false;
+   while(a>1 && (a&1)==0){
+    a>>=1;
+   }
+   return (a==1);
+  }
   var texture=context.createTexture();
   context.pixelStorei(context.UNPACK_FLIP_Y_WEBGL, true);
   context.bindTexture(context.TEXTURE_2D, texture);
@@ -534,9 +643,20 @@ Texture.fromImage=function(context,image){
     context.TEXTURE_MAG_FILTER, context.LINEAR);
   context.texImage2D(context.TEXTURE_2D, 0,
     context.RGBA, context.RGBA, context.UNSIGNED_BYTE, image);
-  context.texParameteri(context.TEXTURE_2D,
-    context.TEXTURE_MIN_FILTER, context.NEAREST_MIPMAP_LINEAR);
-  context.generateMipmap(context.TEXTURE_2D);
+  if(isPowerOfTwo(image.width) && isPowerOfTwo(image.height)){
+   // Enable mipmaps if texture's dimensions are powers of two
+   context.texParameteri(context.TEXTURE_2D,
+     context.TEXTURE_MIN_FILTER, context.NEAREST_MIPMAP_LINEAR);
+   context.generateMipmap(context.TEXTURE_2D);
+  } else {
+   context.texParameteri(context.TEXTURE_2D,
+     context.TEXTURE_MIN_FILTER, context.LINEAR);  
+   // Other textures require this wrap mode
+   context.texParameteri(context.TEXTURE_2D,
+     context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);  
+   context.texParameteri(context.TEXTURE_2D,
+     context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);  
+  }
   context.bindTexture(context.TEXTURE_2D, null);
   return texture;
 }

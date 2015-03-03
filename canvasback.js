@@ -215,6 +215,7 @@ CanvasBackground.prototype.drawBack=function(){
   var lightData=new LightSource([0,0,-1],[0.2,0.2,0.2],[1,1,1],[1,1,1]);
   this.materialData=new MaterialShade([1,1,1],[1.0,1.0,1.0],[1,1,1],0);
   this.cubeMesh=GLUtil.createCube(this.context);
+  this.sphereMesh=GLUtil.createSphere(this.context);
   this.scene=new Scene3D(this.context)
     .setProjectionMatrix(GLUtil.mat4ortho(-1,1,-1,1,-5,5))
     .setLightSource(lightData)
@@ -244,6 +245,8 @@ CanvasBackground.prototype.drawOne=function(){
   var x=(this.constructor.rand(2000)/1000.0)-1.0;
   var y=(this.constructor.rand(2000)/1000.0)-1.0;
   var z=(this.constructor.rand(60))/60.0;
+  var mesh=(this.constructor.rand(2)==0) ?
+    this.cubeMesh : this.sphereMesh;
   var radius=(16+this.constructor.rand(100))/1000.0;
   var rgb=this.constructor.hls2rgb(newhls);
   rgb[0]/=255
@@ -254,9 +257,11 @@ CanvasBackground.prototype.drawOne=function(){
      (this.constructor.rand(60))/30.0,
      (this.constructor.rand(60))/30.0,
      (this.constructor.rand(60))/30.0]
-   var shape=new Shape(this.context,this.cubeMesh);
+   var shape=new Shape(this.context,mesh);
    shape.setScale(radius,radius,radius);
-   shape.setRotation(angle,vector);
+   if(mesh!=this.sphereMesh){ // spheres can't be rotated without a texture
+    shape.setRotation(angle,vector);
+   }
    shape.setPosition(x,y,z);
    shape.setMaterial(this.scene.getColor(rgb).setShading(this.materialData));
    this.scene.shapes.push(shape);
