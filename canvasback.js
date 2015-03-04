@@ -253,17 +253,19 @@ CanvasBackground.prototype.drawOne=function(){
   rgb[1]/=255
   rgb[2]/=255
    var angle=this.constructor.rand(160);
-   var vector=[
-     (this.constructor.rand(60))/30.0,
-     (this.constructor.rand(60))/30.0,
-     (this.constructor.rand(60))/30.0]
+   var vector=GLUtil.vec3normInPlace([
+     (this.constructor.rand(360))/360.0,
+     (this.constructor.rand(360))/360.0,
+     (this.constructor.rand(360))/360.0]);
    var shape=new Shape(this.context,mesh);
    shape.setScale(radius,radius,radius);
-   if(mesh!=this.sphereMesh){ // spheres can't be rotated without a texture
+   var material=this.scene.getColor(rgb).setShading(this.materialData);
+   if(mesh!=this.sphereMesh || material.kind==Materials.TEXTURE){
+    // spheres can't be rotated without a texture
     shape.setRotation(angle,vector);
    }
    shape.setPosition(x,y,z);
-   shape.setMaterial(this.scene.getColor(rgb).setShading(this.materialData));
+   shape.setMaterial(material);
    this.scene.shapes.push(shape);
  } else {
   var rect=[this.constructor.rand(this.width+30)-30,

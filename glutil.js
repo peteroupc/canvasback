@@ -84,6 +84,10 @@ createVerticesAndFaces:function(context, vertices, faces, format){
   type=context.UNSIGNED_INT;
   context.bufferData(context.ELEMENT_ARRAY_BUFFER,
     new Uint32Array(faces), context.STATIC_DRAW);
+ } else if(vertices.length<=256 && faces.length<=256){
+  type=context.UNSIGNED_BYTE;
+  context.bufferData(context.ELEMENT_ARRAY_BUFFER,
+    new Uint8Array(faces), context.STATIC_DRAW);
  } else {
   context.bufferData(context.ELEMENT_ARRAY_BUFFER,
     new Uint16Array(faces), context.STATIC_DRAW);
@@ -141,23 +145,42 @@ recalcNormals:function(vertices,faces){
     len=Math.sqrt(x*x+y*y+z*z);
     if(len){
       len=1.0/len;
-      vertices[i+3]*=len;
-      vertices[i+4]*=len;
-      vertices[i+5]*=len;
+      vertices[i+3]=x*len;
+      vertices[i+4]=y*len;
+      vertices[i+5]=z*len;
     }
   }
 },
 createSphere:function(context,radius,count) {
  if(typeof radius=="undefined")radius=1.0;
- if(typeof div=="undefined")count=5;
+ if(typeof div=="undefined")count=6;
  function pushMidpoint(points,a,b){
   var newpt=GLUtil.vec3normInPlace([
     (points[a]+points[b])/2.0,
     (points[a+1]+points[b+1])/2.0,
     (points[a+2]+points[b+2])/2.0]);
-  var uvx=(points[a+6]+points[b+6])/2;
-  var uvy=(points[a+7]+points[b+7])/2;
-  points.push(newpt[0],newpt[1],newpt[2],0,0,0,uvx,uvy);
+  points.push(newpt[0],newpt[1],newpt[2],0,0,0,0,0);
+ }
+ function adjustPoleTex(points,tris,triOffset,pointPole,point2,point3){
+   var tx;
+   var pxPole=tris[triOffset+pointPole]*8;
+   var px2=tris[triOffset+point2]*8;
+   var px3=tris[triOffset+point3]*8;
+   var tx=(points[px2+6]+points[px3+6])/2;
+   if(Math.abs(points[px2+6]-points[px3+6])>0.5){
+        var point2Less=(points[px2+6]<points[px3+6]) ? true : false;
+        var lowpt=point2Less ? point2 : point3;
+        var lowpx=point2Less ? px2 : px3;
+        var tx2=points[lowpx+6]+1;
+        tris[triOffset+lowpt]=points.length/8;
+        points.push(points[lowpx],points[lowpx+1],points[lowpx+2],
+           0,0,0,tx2,points[lowpx+7]);
+        tx=(point2Less) ? tx2+points[px3+6] : tx2+points[px2+6];
+        tx/=2
+   }
+   tris[triOffset+pointPole]=points.length/8;
+   points.push(points[pxPole],points[pxPole+1],points[pxPole+2],
+         0,0,0,tx,points[pxPole+7]);
  }
  var t=0.5773502691896258
  var points=[t,t,t,0,0,0,0,0,
@@ -171,9 +194,9 @@ createSphere:function(context,radius,count) {
    var t1=tris[j];
    var t2=tris[j+1];
    var t3=tris[j+2];
-   var point1=tris[j]*8;
-   var point2=tris[j+1]*8;
-   var point3=tris[j+2]*8;
+   var point1=t1*8;
+   var point2=t2*8;
+   var point3=t3*8;
    var pointIndex=points.length/8;
    pushMidpoint(points,point1,point2);
    pushMidpoint(points,point2,point3);
@@ -185,16 +208,63 @@ createSphere:function(context,radius,count) {
     t1,pointIndex,pointIndex+2,
     t2,pointIndex+1,pointIndex,
     t3,pointIndex+2,pointIndex+1);
-  }  
- }
- if(radius!=1.0){
-  // Multiply vertices by the given radius
-  for(var i=0;i<points.length;i+=8){
-   points[i]*=radius;
-   points[i+1]*=radius;
-   points[i+2]*=radius;
   }
  }
+ // Calculate texture coordinates
+ for(var i=0;i<points.length;i+=8){
+   points[i+6]=1-(0.5+(Math.atan2(points[i],points[i+2])/(Math.PI*2)));
+   points[i+7]=1-(Math.acos(points[i+1])/Math.PI);
+  }
+  // Adjust texture coordinates
+  for(var j=0;j<tris.length;j+=3){
+   var point1=tris[j]*8;
+   var point2=tris[j+1]*8;
+   var point3=tris[j+2]*8;
+   if(points[point1]==0 && points[point1+2]==0){
+      adjustPoleTex(points,tris,j,0,1,2);continue
+   } else if(points[point2]==0 && points[point2+2]==0){
+      adjustPoleTex(points,tris,j,1,0,2);continue
+   } else if(points[point3]==0 && points[point3+2]==0){
+      adjustPoleTex(points,tris,j,2,0,1);continue
+   }
+   var px1=points[point1+6];
+   var px2=points[point2+6];
+   var px3=points[point3+6];
+   var mintx=(px1<px2) ? (px1<px3 ? point1 : point3) :
+     (px2<px3 ? point2 : point3);
+   var maxtx=(px1>px2) ? (px1>px3 ? point1 : point3) :
+     (px2>px3 ? point2 : point3);
+   var midtx=(point1==mintx || point1==maxtx) ? ((point2==mintx || point2==maxtx) ?
+         point3 : point2) : point1
+   if((points[maxtx+6]-points[mintx+6])>0.5){
+      var newIndex;
+      newIndex=points.length/8;
+      points.push(points[mintx],points[mintx+1],points[mintx+2],
+         0,0,0,points[mintx+6]+1.0,points[mintx+7]);
+      if(point1==mintx)tris[j]=newIndex;
+      else if(point2==mintx)tris[j+1]=newIndex;
+      else tris[j+2]=newIndex;
+      farEnd=newIndex*8;
+      if((points[maxtx+6]-points[midtx+6])>0.5){
+       newIndex=points.length/8;
+       var mend=points[midtx+6]+1.0
+       points.push(points[midtx],points[midtx+1],points[midtx+2],
+          0,0,0,points[midtx+6]+1.0,points[midtx+7]);
+       if(point1==midtx)tris[j]=newIndex;
+       else if(point2==midtx)tris[j+1]=newIndex;
+       else tris[j+2]=newIndex;
+       midEnd=newIndex*8;
+      }
+   }
+  }
+  // Multiply vertices by the given radius
+ if(radius!=1.0){
+  for(var i=0;i<points.length;i+=8){
+     points[i]*=radius;
+     points[i+1]*=radius;
+     points[i+2]*=radius;
+  }
+  }
  GLUtil.recalcNormals(points,tris);
  return GLUtil.createVerticesAndFaces(
    context,points,tris,Shape.VEC3DNORMALUV);
@@ -646,16 +716,16 @@ Texture.fromImage=function(context,image){
   if(isPowerOfTwo(image.width) && isPowerOfTwo(image.height)){
    // Enable mipmaps if texture's dimensions are powers of two
    context.texParameteri(context.TEXTURE_2D,
-     context.TEXTURE_MIN_FILTER, context.NEAREST_MIPMAP_LINEAR);
+     context.TEXTURE_MIN_FILTER, context.LINEAR_MIPMAP_LINEAR);
    context.generateMipmap(context.TEXTURE_2D);
   } else {
    context.texParameteri(context.TEXTURE_2D,
-     context.TEXTURE_MIN_FILTER, context.LINEAR);  
+     context.TEXTURE_MIN_FILTER, context.LINEAR);
    // Other textures require this wrap mode
    context.texParameteri(context.TEXTURE_2D,
-     context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);  
+     context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
    context.texParameteri(context.TEXTURE_2D,
-     context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);  
+     context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
   }
   context.bindTexture(context.TEXTURE_2D, null);
   return texture;
@@ -795,9 +865,10 @@ Shape.prototype.setPosition=function(x,y,z){
   this._matrixDirty=true;
   return this;
 }
-Shape.prototype.rotate=function(angle){
+Shape.prototype.rotate=function(angle,vector){
   this.angle+=angle;
   this.angle%=360;
+  this.vector=vector;
   this._matrixDirty=true;
   return this;
 }
