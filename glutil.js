@@ -613,17 +613,22 @@ ShaderProgram.prototype.setUniforms=function(uniforms){
   for(var i in uniforms){
     if(uniforms.hasOwnProperty(i)){
       v=uniforms[i];
+      var uniform=this.get(i);
+      if(uniform===null)continue;
+      //console.log("setting "+i+": "+v);
       if(v.length==3){
-       this.context.uniform3f(this.get(i), v[0],v[1],v[2]);
+       this.context.uniform3f(uniform, v[0],v[1],v[2]);
       } else if(v.length==4){
-       this.context.uniform4f(this.get(i), v[0],v[1],v[2],v[3]);
+       this.context.uniform4f(uniform, v[0],v[1],v[2],v[3]);
       } else if(v.length==16){
-       this.context.uniformMatrix4fv(this.get(i),false,v);
+       this.context.uniformMatrix4fv(uniform,false,v);
+      } else if(v.length==9){
+       this.context.uniformMatrix3fv(uniform,false,v);
       } else {
        if(this.uniformTypes[i]==this.context.FLOAT){
-        this.context.uniform1f(this.get(i), (typeof v=="number") ? v : v[0]);
+        this.context.uniform1f(uniform, (typeof v=="number") ? v : v[0]);
        } else {
-        this.context.uniform1i(this.get(i), (typeof v=="number") ? v : v[0]);
+        this.context.uniform1i(uniform, (typeof v=="number") ? v : v[0]);
        }
       }
     }
@@ -708,13 +713,14 @@ return "" +
 "void main(){\n" +
 "vec4 positionVec4=vec4(position,1.0);\n" +
 "vec4 worldPosition=world*positionVec4;\n" +
+"vec4 viewWorldPosition=view*world*positionVec4;\n" +
 "vec3 sdir;\n"+
 "float attenuation;\n"+
 "if(lightPosition.w == 0.0){\n" +
 " sdir=normalize(vec3(lightPosition));\n" +
 " attenuation=1.0;\n" +
 "} else {\n"+
-" vec3 vertexToLight=vec3(lightPosition-worldPosition);\n"+
+" vec3 vertexToLight=vec3(lightPosition-viewWorldPosition);\n"+
 " float dist=length(vertexToLight);\n"+
 " sdir=normalize(vertexToLight);\n" +
 " attenuation=1.0/(1.0*dist);\n" +
@@ -781,10 +787,9 @@ LightSource.pointLight=function(position,diffuse,specular){
 var Materials=function(context, program){
  this.textures={}
  this.context=context;
- this.useTextureUniform=program.get("color");
- this.samplerUniform=program.get("sampler");
- this.colorUniform=program.get("useTexture");
- this.context.uniform1i(this.samplerUniform,0);
+ this.colorUniform=program.get("color");
+ program.setUniforms({"sampler":0});
+ this.useTextureUniform=program.get("useTexture");
 }
 Materials.COLOR = 0;
 Materials.TEXTURE = 1;
@@ -817,12 +822,12 @@ SolidColor.prototype.setShading=function(material){
  return this;
 }
 SolidColor.prototype.bind=function(program){
-  var useTextureUniform=program.get("useTexture");
-  if(useTextureUniform!==null){
-   this.context.uniform1i(useTextureUniform, 0);
+  var uniforms={};
+  if(this.useTextureUniform!==null){
+   uniforms["useTexture"]=0;
   }
-  this.context.uniform4f(program.get("color"),this.color[0],
-    this.color[1],this.color[2],this.color[3]);
+  uniforms["color"]=this.color;
+  program.setUniforms(uniforms);
   program.setMaterialShade(this.material);
 }
 var Texture=function(texture){
@@ -853,9 +858,9 @@ var TextureImage=function(context, name, loadHandler){
 TextureImage.prototype.bind=function(program){
    if (this.texture!==null) {
       var useTextureUniform=program.get("useTexture");
-      if(useTextureUniform!==null){
-        this.context.uniform1i(useTextureUniform, 1);
-      }
+      var uniforms={};
+      uniforms["useTexture"]=1;
+      program.setUniforms(uniforms);
       this.context.activeTexture(this.context.TEXTURE0);
       this.context.bindTexture(this.context.TEXTURE_2D,
         this.texture);
@@ -993,7 +998,7 @@ function Shape(context,vertfaces){
   this.position=[0,0,0];
   this.vector=[0,0,0];
   this.uniforms=[];
-  this._matrixDirty=false;
+  this._matrixDirty=true;
   this._invTransModel3=GLUtil.mat3identity();
   this.matrix=GLUtil.mat4identity();
 }
@@ -1087,9 +1092,10 @@ Shape.prototype.render=function(program){
    if(this._matrixDirty){
     this._updateMatrix();
    }
-   this.context.uniformMatrix4fv(uniformMatrix,false,this.matrix);
-   this.context.uniformMatrix3fv(
-     program.get("modelInverseTrans3"),false,this._invTransModel3);
+   program.setUniforms({
+    "world":this.matrix,
+    "modelInverseTrans3":this._invTransModel3
+   });
   }
   // Draw the shape
   this.context.drawElements(this.context.TRIANGLES,
