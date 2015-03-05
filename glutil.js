@@ -122,19 +122,19 @@ recalcNormals:function(vertices,faces){
     len=Math.sqrt(x*x+y*y+z*z);
     if(len!=0){
       len=1.0/len;
-      n1[0]=x*len;
-      n1[1]=y*len;
-      n1[2]=z*len;
+      x*=len;
+      y*=len;
+      z*=len;
       // add normalized normal to each vertex of the face
-      vertices[v1+3]+=n1[0]
-      vertices[v1+4]+=n1[1]
-      vertices[v1+5]+=n1[2]
-      vertices[v2+3]+=n1[0]
-      vertices[v2+4]+=n1[1]
-      vertices[v2+5]+=n1[2]
-      vertices[v3+3]+=n1[0]
-      vertices[v3+4]+=n1[1]
-      vertices[v3+5]+=n1[2]
+      vertices[v1+3]+=x
+      vertices[v1+4]+=y
+      vertices[v1+5]+=z
+      vertices[v2+3]+=x
+      vertices[v2+4]+=y
+      vertices[v2+5]+=z
+      vertices[v3+3]+=x
+      vertices[v3+4]+=y
+      vertices[v3+5]+=z
     }
   }
   // Normalize each normal of the vertex
@@ -156,9 +156,9 @@ createSphere:function(context,radius,count) {
  if(typeof div=="undefined")count=6;
  function pushMidpoint(points,a,b){
   var newpt=GLUtil.vec3normInPlace([
-    (points[a]+points[b])/2.0,
-    (points[a+1]+points[b+1])/2.0,
-    (points[a+2]+points[b+2])/2.0]);
+    (points[a]+points[b])*0.5,
+    (points[a+1]+points[b+1])*0.5,
+    (points[a+2]+points[b+2])*0.5]);
   points.push(newpt[0],newpt[1],newpt[2],0,0,0,0,0);
  }
  function adjustPoleTex(points,tris,triOffset,pointPole,point2,point3){
@@ -166,7 +166,7 @@ createSphere:function(context,radius,count) {
    var pxPole=tris[triOffset+pointPole]*8;
    var px2=tris[triOffset+point2]*8;
    var px3=tris[triOffset+point3]*8;
-   var tx=(points[px2+6]+points[px3+6])/2;
+   var tx=(points[px2+6]+points[px3+6])*0.5;
    if(Math.abs(points[px2+6]-points[px3+6])>0.5){
         var point2Less=(points[px2+6]<points[px3+6]) ? true : false;
         var lowpt=point2Less ? point2 : point3;
@@ -321,6 +321,111 @@ vec3length:function(a){
 mat4identity:function(){
  return [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]
 },
+mat4copy:function(mat){
+ return mat.slice(0,16);
+},
+mat4invert:function(m){
+var tvar0 = m[0]*m[10];
+var tvar1 = m[0]*m[11];
+var tvar2 = m[0]*m[5];
+var tvar3 = m[0]*m[6];
+var tvar4 = m[0]*m[7];
+var tvar5 = m[0]*m[9];
+var tvar6 = m[10]*m[12];
+var tvar7 = m[10]*m[13];
+var tvar8 = m[10]*m[15];
+var tvar9 = m[11]*m[12];
+var tvar10 = m[11]*m[13];
+var tvar11 = m[11]*m[14];
+var tvar12 = m[1]*m[10];
+var tvar13 = m[1]*m[11];
+var tvar14 = m[1]*m[4];
+var tvar15 = m[1]*m[6];
+var tvar16 = m[1]*m[7];
+var tvar17 = m[1]*m[8];
+var tvar18 = m[2]*m[11];
+var tvar19 = m[2]*m[4];
+var tvar20 = m[2]*m[5];
+var tvar21 = m[2]*m[7];
+var tvar22 = m[2]*m[8];
+var tvar23 = m[2]*m[9];
+var tvar24 = m[3]*m[10];
+var tvar25 = m[3]*m[4];
+var tvar26 = m[3]*m[5];
+var tvar27 = m[3]*m[6];
+var tvar28 = m[3]*m[8];
+var tvar29 = m[3]*m[9];
+var tvar30 = m[4]*m[10];
+var tvar31 = m[4]*m[11];
+var tvar32 = m[4]*m[9];
+var tvar33 = m[5]*m[10];
+var tvar34 = m[5]*m[11];
+var tvar35 = m[5]*m[8];
+var tvar36 = m[6]*m[11];
+var tvar37 = m[6]*m[8];
+var tvar38 = m[6]*m[9];
+var tvar39 = m[7]*m[10];
+var tvar40 = m[7]*m[8];
+var tvar41 = m[7]*m[9];
+var tvar42 = m[8]*m[13];
+var tvar43 = m[8]*m[14];
+var tvar44 = m[8]*m[15];
+var tvar45 = m[9]*m[12];
+var tvar46 = m[9]*m[14];
+var tvar47 = m[9]*m[15];
+var det = tvar45*(tvar27-tvar21) + tvar6*(-tvar26+tvar16) + tvar9*(tvar20-tvar15) +
+tvar42*(-tvar27+tvar21) + tvar7*(tvar25-tvar4) + tvar10*(-tvar19+tvar3) +
+tvar43*(tvar26-tvar16) + tvar46*(-tvar25+tvar4) + tvar11*(tvar14-tvar2) +
+tvar44*(-tvar20+tvar15) + tvar47*(tvar19-tvar3) + tvar8*(-tvar14+tvar2);
+if(det==0)return [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
+det=1.0/det;
+var r=[]
+r[0] = m[6]*tvar10 - m[7]*tvar7 + tvar41*m[14] - m[5]*tvar11 - tvar38*m[15] + m[5]*tvar8;
+r[1] = m[3]*tvar7 - m[2]*tvar10 - tvar29*m[14] + m[1]*tvar11 + tvar23*m[15] - m[1]*tvar8;
+r[2] = m[13]*(tvar21-tvar27) + m[14]*(tvar26-tvar16) + m[15]*(-tvar20+tvar15);
+r[3] = m[9]*(tvar27-tvar21) + m[10]*(-tvar26+tvar16) + m[11]*(tvar20-tvar15);
+r[4] = m[7]*tvar6 - m[6]*tvar9 - tvar40*m[14] + m[4]*tvar11 + tvar37*m[15] - m[4]*tvar8;
+r[5] = m[2]*tvar9 - m[3]*tvar6 + m[14]*(tvar28-tvar1) + m[15]*(-tvar22+tvar0);
+r[6] = m[12]*(tvar27-tvar21) + m[14]*(-tvar25+tvar4) + m[15]*(tvar19-tvar3);
+r[7] = m[8]*(tvar21-tvar27) + m[10]*(tvar25-tvar4) + m[11]*(-tvar19+tvar3);
+r[8] = m[5]*tvar9 - tvar41*m[12] + tvar40*m[13] - m[4]*tvar10 + m[15]*(-tvar35+tvar32);
+r[9] = tvar29*m[12] - m[1]*tvar9 + m[13]*(-tvar28+tvar1) + m[15]*(tvar17-tvar5);
+r[10] = m[12]*(tvar16-tvar26) + m[13]*(tvar25-tvar4) + m[15]*(-tvar14+tvar2);
+r[11] = m[8]*(tvar26-tvar16) + m[9]*(-tvar25+tvar4) + m[11]*(tvar14-tvar2);
+r[12] = tvar38*m[12] - m[5]*tvar6 - tvar37*m[13] + m[4]*tvar7 + m[14]*(tvar35-tvar32);
+r[13] = m[1]*tvar6 - tvar23*m[12] + m[13]*(tvar22-tvar0) + m[14]*(-tvar17+tvar5);
+r[14] = m[12]*(tvar20-tvar15) + m[13]*(-tvar19+tvar3) + m[14]*(tvar14-tvar2);
+r[15] = m[8]*(tvar15-tvar20) + m[9]*(tvar19-tvar3) + m[10]*(-tvar14+tvar2);
+for(var i=0;i<16;i++){
+r[i]*=det;
+}
+return r;
+},
+mat4inverseTranspose3:function(m4){
+ // Operation equivalent to transpose(invert(mat3(m4)))
+var m=[m4[0],m4[1],m4[2],m4[4],m4[5],m4[6],
+   m4[8],m4[9],m4[10]];
+var det=m[0] * m[1+3*1] * m[2+3*2] +
+m[0+3*1] * m[1+3*2] * m[2] +
+m[0+3*2] * m[1] * m[2+3*1] -
+m[0+3*2] * m[1+3*1] * m[2] -
+m[0+3*1] * m[1] * m[2+3*2] -
+m[0] * m[1+3*2] * m[2+3*1];
+if(det==0) {
+return [1,0,0,0,1,0,0,0,1];
+}
+det=1.0/det;
+return [
+ (-m[5] * m[7] + m[4] * m[8])*det,
+ (m[2] * m[7] - m[1] * m[8])*det,
+ (-m[2] * m[4] + m[1] * m[5])*det,
+ (m[5] * m[6] - m[3] * m[8])*det,
+ (-m[2] * m[6] + m[0] * m[8])*det,
+ (m[2] * m[3] - m[0] * m[5])*det,
+ (-m[4] * m[6] + m[3] * m[7])*det,
+ (m[1] * m[6] - m[0] * m[7])*det,
+ (-m[1] * m[3] + m[0] * m[4])*det]
+},
 mat4scaleVec3:function(mat,v3){
   var scaleX=v3[0];
   var scaleY=v3[1];
@@ -332,6 +437,9 @@ mat4scaleVec3:function(mat,v3){
 		mat[12]*scaleX, mat[13]*scaleY, mat[14]*scaleZ, mat[15]
 	];
 },
+mat3identity:function(){
+ return [1,0,0,0,1,0,0,0,1];
+},
 mat4scaledVec3:function(v3){
   return [v3[0],0,0,0,0,v3[1],0,0,0,0,v3[2],0,0,0,0,1]
 },
@@ -342,7 +450,7 @@ mat4perspectiveDegrees:function(fovY,aspectRatio,nearZ,farZ){
  var f = 1/Math.tan(fovY*Math.PI/360);
  var nmf = nearZ-farZ;
  nmf=1/nmf;
- return [ f/aspectRatio, 0, 0, 0, 0, f, 0, 0, 0, 0,
+ return [f/aspectRatio, 0, 0, 0, 0, f, 0, 0, 0, 0,
    nmf*(nearZ+farZ), -1, 0, 0, nmf*nearZ*farZ*2, 0]
 },
 mat4lookat:function(viewerPos, lookingAt, up){
@@ -391,6 +499,19 @@ mat4scaleVec3InPlace:function(mat,v3){
   mat[6]*=scaleZ;
   mat[10]*=scaleZ;
   mat[14]*=scaleZ;
+},
+mat4multiply:function(a,b){
+  var dst=[];
+	for(var i = 0; i < 16; i+= 4){
+		for(var j = 0; j < 4; j++){
+			dst[i+j] =
+				b[i]   * a[j]   +
+				b[i+1] * a[j+4] +
+				b[i+2] * a[j+8] +
+				b[i+3] * a[j+12];
+    }
+  }
+  return dst;
 },
 mat4rotateVecDegrees:function(mat, angle, v){
 v=GLUtil.vec3norm(v);
@@ -483,6 +604,8 @@ ShaderProgram.prototype.setUniforms=function(uniforms){
       v=uniforms[i];
       if(v.length==3){
        this.context.uniform3f(this.get(i), v[0],v[1],v[2]);
+      } else if(v.length==4){
+       this.context.uniform4f(this.get(i), v[0],v[1],v[2],v[3]);
       } else if(v.length==16){
        this.context.uniformMatrix4fv(this.get(i),false,v);
       } else {
@@ -533,8 +656,7 @@ ShaderProgram._compileShaders=function(context, vertexShader, fragmentShader){
 ShaderProgram.prototype.setLightSource=function(light){
  if(!light)return this;
  this.setUniforms({
- "sdir":light.direction,
- "sa":light.ambient,
+ "lightPosition":light.position,
  "sd":light.diffuse,
  "ss":light.specular
  });
@@ -557,18 +679,48 @@ return "" +
 "attribute vec2 textureUV;\n" +
 "uniform mat4 world;\n" +
 "uniform mat4 view;\n" +
+"uniform mat4 viewInverse; /* internal */\n" +
+"uniform mat3 modelInverseTrans3; /* internal */\n" +
 "uniform mat4 projection;\n" +
 "uniform float alpha;\n"+
+"uniform vec4 lightPosition;\n" + // source light direction
+"uniform vec3 sa;\n" + // source light ambient color
+"uniform vec3 ma;\n" + // material ambient color (-1 to -1 each component).
+"uniform vec3 sd;\n" + // source light diffuse color
+"uniform vec3 md;\n" + // material diffuse color (0-1 each component). Is multiplied by texture/solid color.
+"uniform vec3 ss;\n" + // source light specular color
+"uniform vec3 ms;\n" + // material specular color (0-1 each comp.).  Affects how intense highlights are.
+"uniform float mshin;\n" + // material shininess (1 or greater).  A higher value results in sharper highlights.
 "varying vec2 textureUVVar;\n"+
-"varying vec3 normalVar;\n" +
-"varying vec3 viewPositionVar;\n" +
+"varying vec3 ambientAndSpecularVar;\n" +
+"varying vec3 diffuseVar;\n" +
 "void main(){\n" +
 "vec4 positionVec4=vec4(position,1.0);\n" +
-"mat4 viewWorld=view*world;\n" +
-"gl_Position=projection*viewWorld*positionVec4;\n" +
-"viewPositionVar=vec3(viewWorld*positionVec4);\n" +
-"normalVar=normalize(vec3(world*vec4(normal,0.0)));\n" +
+"vec4 worldPosition=world*positionVec4;\n" +
+"vec3 sdir;\n"+
+"float attenuation;\n"+
+"if(lightPosition.w == 0.0){\n" +
+" sdir=normalize(vec3(lightPosition));\n" +
+" attenuation=1.0;\n" +
+"} else {\n"+
+" vec3 vertexToLight=vec3(lightPosition-worldPosition);\n"+
+" float dist=length(vertexToLight);\n"+
+" sdir=normalize(vertexToLight);\n" +
+" attenuation=1.0/(1.0*dist);\n" +
+"}\n"+
+"vec3 transformedNormal=normalize(modelInverseTrans3*normal);\n" +
+"vec3 ambientAndSpecular=sa*ma;\n" +
+"float diffInt=dot(transformedNormal,sdir);" +
+"vec3 viewPosition=normalize(vec3(viewInverse*vec4(0,0,0,1)-worldPosition));\n" +
+"if(diffInt>=0.0){\n" +
+"   // specular reflection\n" +
+"   ambientAndSpecular+=(ss*ms*pow(max(dot(reflect(-sdir,transformedNormal)," +
+"      viewPosition),0.0),mshin));\n" +
+"}\n"+
+"diffuseVar=sd*md*max(0.0,dot(transformedNormal,sdir))*attenuation;\n" +
+"ambientAndSpecularVar=ambientAndSpecular;\n"+
 "textureUVVar=textureUV;\n"+
+"gl_Position=projection*view*world*positionVec4;\n" +
 "}";
 };
 ShaderProgram.getDefaultFragment=function(){
@@ -576,42 +728,43 @@ return "" +
 "precision highp float;\n" +
 "uniform sampler2D sampler;\n" + // texture sampler
 "uniform int useTexture;\n" + // use texture sampler rather than solid color if nonzero
-"uniform vec3 sa;\n" + // source light ambient color
-"uniform vec3 sd;\n" + // source light diffuse color
-"uniform vec3 ss;\n" + // source light specular color
-"uniform vec3 sdir;\n" + // source light direction
-"uniform vec3 ma;\n" + // material ambient color (-1 to -1 each component).
-"uniform vec3 md;\n" + // material diffuse color (0-1 each component). Is multiplied by texture/solid color.
-"uniform vec3 ms;\n" + // material specular color (0-1 each comp.).  Affects how intense highlights are.
-"uniform float mshin;\n" + // material shininess (1 or greater).  A higher value results in sharper highlights.
 "uniform vec4 color;\n" + // solid color
-"varying vec3 normalVar;\n" +
-"varying vec3 viewPositionVar;\n" +
 "varying vec2 textureUVVar;\n"+
+"varying vec3 ambientAndSpecularVar;\n" +
+"varying vec3 diffuseVar;\n" +
 "void main(){\n" +
-" vec3 normNormalVar=normalize(normalVar);" +
-" vec3 normSdir=normalize(sdir);" +
-" float diffInt=dot(normNormalVar,normSdir);" +
 " vec4 baseColor=(useTexture==0) ? color : texture2D(sampler,textureUVVar);\n" +
-" vec3 phong=(sa*ma)+(sd*md*baseColor.rgb*max(diffInt,0.0));\n" +
-" if(diffInt>=0.0){\n" +
-"   phong=phong+(ss*ms*pow(max(dot(reflect(-normSdir,normNormalVar),viewPositionVar),0.0),mshin));\n" +
-" }\n"+
+" vec3 phong=ambientAndSpecularVar+diffuseVar*baseColor.rgb;\n" +
 " gl_FragColor=vec4(phong,baseColor.a);\n" +
 "}";
 };
 function MaterialShade(ambient, diffuse, specular,shininess) {
  this.shininess=(shininess==null) ? 1 : Math.max(1,shininess);
- this.ambient=ambient||[0,0,0];
+ this.ambient=ambient||[0.2,0.2,0.2];
  this.diffuse=diffuse||[1,1,1];
- this.specular=ambient||[0.2,0.2,0.2];
+ this.specular=specular||[0.2,0.2,0.2];
 }
-function LightSource(direction,ambient, diffuse, specular) {
- this.direction=direction||[0,0,-1];
- this.ambient=ambient||[1,1,1];
- this.diffuse=diffuse||[0.2,0.2,0.2];
- this.specular=ambient||[0.2,0.2,0.2];
-}
+function LightSource(position, diffuse, specular) {
+ this.position=position ? [position[0],position[1],position[2],1.0] :[0, 1, 2, 1];
+ this.diffuse=diffuse||[1, 1, 1];
+ this.specular=specular||[0.2,0.2,0.2];
+};
+LightSource.directionalLight=function(position,diffuse,specular){
+ var source=new LightSource()
+ source.direction=null;
+ source.position=position ? [position[0],position[1],position[2],0.0] : [0,1,2,1];
+ source.diffuse=diffuse||[1,1,1];
+ source.specular=specular||[0.2,0.2,0.2];
+ return source;
+};
+LightSource.pointLight=function(position,diffuse,specular){
+ var source=new LightSource()
+ source.direction=null;
+ source.position=position ? [position[0],position[1],position[2],1.0] : [0,1,2,1];
+ source.diffuse=diffuse||[1,1,1];
+ source.specular=specular||[0.2,0.2,0.2];
+ return source
+};
 
 (function(){
 var Materials=function(context, program){
@@ -742,10 +895,18 @@ function Scene3D(context){
  this.clearColor=[0,0,0,0];
  this.materials=new Materials(context,this.program);
  this.context.enable(context.BLEND);
+ this._projectionMatrix=null;
+ this._viewMatrix=null;
+ this._matrixDirty=false;
+ this._invProjectionView=null;
+ this._invTransModel3=null;
+ this._invView=null;
+ this.ambient=null;
  this.context.blendFunc(context.SRC_ALPHA,context.ONE_MINUS_SRC_ALPHA);
  this.setProjectionMatrix(GLUtil.mat4identity())
     .setViewMatrix(GLUtil.mat4identity())
-    .setLightSource(new LightSource());
+    .setLightSource(new LightSource())
+    .setAmbient(0.2,0.2,0.2,1.0);
  this.program.setMaterialShade(new MaterialShade());
  this.context.enable(this.context.DEPTH_TEST);
  this.context.depthFunc(this.context.LEQUAL);
@@ -756,8 +917,15 @@ function Scene3D(context){
     this.context.DEPTH_BUFFER_BIT);
 }
 Scene3D.prototype.setPerspective=function(fov, near, far){
- this.setProjectionMatrix(GLUtil.mat4perspective(fov,
+ return this.setProjectionMatrix(GLUtil.mat4perspectiveDegrees(fov,
    this.context.viewportWidth*1.0/this.context.viewportHeight,near,far));
+}
+Scene3D.prototype.setAmbient=function(r,g,b,a){
+ this.ambient=[r,g,b,(typeof a=="undefined") ? 1.0 : a];
+ this.program.setUniforms({
+ "sa":[this.ambient[0],this.ambient[1],this.ambient[2]]
+ });
+ return this;
 }
 Scene3D.prototype.setClearColor=function(r,g,b,a){
   this.context.clearColor(r,g,b,(typeof a=="undefined") ? 1.0 : a);
@@ -769,16 +937,27 @@ Scene3D.prototype.getColor=function(r,g,b,a){
 Scene3D.prototype.getTexture=function(name){
  return this.materials.getTexture(name);
 }
+Scene3D.prototype._updateMatrix=function(){
+ if(this._matrixDirty){
+  var projView=GLUtil.mat4multiply(this._projectionMatrix,this._viewMatrix);
+  this._invProjectionView=GLUtil.mat4invert(projView);
+  this._invView=GLUtil.mat4invert(this._viewMatrix);
+  this.program.setUniforms({
+   "view":this._viewMatrix,
+   "projection":this._projectionMatrix,
+   "viewInverse":this._invView,
+  });
+  this._matrixDirty=false;
+ }
+}
 Scene3D.prototype.setProjectionMatrix=function(matrix){
- this.program.setUniforms({
- "projection":matrix
- });
+ this._projectionMatrix=GLUtil.mat4copy(matrix);
+ this._matrixDirty=true;
  return this;
 }
 Scene3D.prototype.setViewMatrix=function(matrix){
- this.program.setUniforms({
- "view":matrix
- });
+ this._viewMatrix=GLUtil.mat4copy(matrix);
+ this._matrixDirty=true;
  return this;
 }
 Scene3D.prototype.setLightSource=function(light){
@@ -786,6 +965,7 @@ Scene3D.prototype.setLightSource=function(light){
  return this;
 }
 Scene3D.prototype.render=function(){
+  this._updateMatrix();
   this.context.clear(this.context.COLOR_BUFFER_BIT);
   for(var i=0;i<this.shapes.length;i++){
    this.shapes[i].render(this.program);
@@ -803,6 +983,7 @@ function Shape(context,vertfaces){
   this.vector=[0,0,0];
   this.uniforms=[];
   this._matrixDirty=false;
+  this._invTransModel3=GLUtil.mat3identity();
   this.matrix=GLUtil.mat4identity();
 }
 Shape.VEC2D=2;
@@ -841,7 +1022,7 @@ Shape.prototype._bind=function(context, vertfaces,
 Shape.prototype.setMaterial=function(material){
  this.material=material;
 }
-Shape.prototype._calcMatrix=function(){
+Shape.prototype._updateMatrix=function(){
   this._matrixDirty=false;
   this.matrix=GLUtil.mat4scaledVec3(this.scale);
   if(this.angle!=0){
@@ -850,6 +1031,7 @@ Shape.prototype._calcMatrix=function(){
   this.matrix[12]+=this.position[0];
   this.matrix[13]+=this.position[1];
   this.matrix[14]+=this.position[2];
+  this._invTransModel3=GLUtil.mat4inverseTranspose3(this.matrix);
 }
 Shape.prototype.setScale=function(x,y,z){
   if(x!=null && y==null && z==null){
@@ -892,9 +1074,11 @@ Shape.prototype.render=function(program){
   var uniformMatrix=program.get("world");
   if(uniformMatrix!==null){
    if(this._matrixDirty){
-    this._calcMatrix();
+    this._updateMatrix();
    }
    this.context.uniformMatrix4fv(uniformMatrix,false,this.matrix);
+   this.context.uniformMatrix3fv(
+     program.get("modelInverseTrans3"),false,this._invTransModel3);
   }
   // Draw the shape
   this.context.drawElements(this.context.TRIANGLES,

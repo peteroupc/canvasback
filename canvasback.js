@@ -212,11 +212,12 @@ CanvasBackground.prototype.drawBack=function(){
   var rgb=this.constructor.hls2rgb(this.hls);
   var uniformValues={};
   // light data
-  var lightData=new LightSource([0,0,-1],[0.2,0.2,0.2],[1,1,1],[1,1,1]);
-  this.materialData=new MaterialShade([1,1,1],[1.0,1.0,1.0],[1,1,1],0);
+  var lightData=new LightSource(LightSource.directionalLight([0,0,-10],[1,1,1],[0.2,0.2,0.2]);
+  this.materialData=new MaterialShade([0.2,0.2,0.2],[1.0,1.0,1.0],[0.2,0.2,0.2],1);
   this.cubeMesh=GLUtil.createCube(this.context);
   this.sphereMesh=GLUtil.createSphere(this.context);
   this.scene=new Scene3D(this.context)
+    .setAmbient(0.2,0.2,0.2)
     .setProjectionMatrix(GLUtil.mat4ortho(-1,1,-1,1,-5,5))
     .setLightSource(lightData)
     .setClearColor(rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0, 1.0);
