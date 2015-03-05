@@ -416,12 +416,12 @@ mat4inverseTranspose3:function(m4){
  // Operation equivalent to transpose(invert(mat3(m4)))
 var m=[m4[0],m4[1],m4[2],m4[4],m4[5],m4[6],
    m4[8],m4[9],m4[10]];
-var det=m[0] * m[1+3*1] * m[2+3*2] +
-m[0+3*1] * m[1+3*2] * m[2] +
-m[0+3*2] * m[1] * m[2+3*1] -
-m[0+3*2] * m[1+3*1] * m[2] -
-m[0+3*1] * m[1] * m[2+3*2] -
-m[0] * m[1+3*2] * m[2+3*1];
+var det=m[0] * m[4] * m[8] +
+m[3] * m[7] * m[2] +
+m[6] * m[1] * m[5] -
+m[6] * m[4] * m[2] -
+m[3] * m[1] * m[8] -
+m[0] * m[7] * m[5];
 if(det==0) {
 return [1,0,0,0,1,0,0,0,1];
 }
