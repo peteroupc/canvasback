@@ -212,13 +212,16 @@ CanvasBackground.prototype.drawBack=function(){
   var rgb=this.constructor.hls2rgb(this.hls);
   var uniformValues={};
   // light data
-  var lightData=new LightSource(LightSource.directionalLight([0,0,-10],[1,1,1],[0.2,0.2,0.2]);
-  this.materialData=new MaterialShade([0.2,0.2,0.2],[1.0,1.0,1.0],[0.2,0.2,0.2],1);
+  var lightData=LightSource.pointLight([0.24,0.31,2],
+   [1.83,1.83,1.83],[0.1,0.1,0.1]);
+  this.materialData=new MaterialShade(
+   [0.03,0.03,0.03],[1.0,1.0,1.0],[0,0,0],1);
   this.cubeMesh=GLUtil.createCube(this.context);
   this.sphereMesh=GLUtil.createSphere(this.context);
+  var amb=8;
   this.scene=new Scene3D(this.context)
-    .setAmbient(0.2,0.2,0.2)
-    .setProjectionMatrix(GLUtil.mat4ortho(-1,1,-1,1,-5,5))
+    .setAmbient(amb,amb,amb)
+    .setProjectionMatrix(GLUtil.mat4identity())
     .setLightSource(lightData)
     .setClearColor(rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0, 1.0);
  } else {
@@ -227,7 +230,7 @@ CanvasBackground.prototype.drawBack=function(){
  }
 }
 CanvasBackground.prototype.animate=function(){
-  this.count++;
+ this.count++;
   if(this.count>=4){
    this.count=0;
    this.drawOne();
@@ -237,6 +240,7 @@ CanvasBackground.prototype.animate=function(){
   }
 }
 CanvasBackground.prototype.drawOne=function(){
+
  var newhls=this.constructor.varyColor(this.hls);
  if(this.use3d){
   if(this.shapes.length>300){
@@ -257,7 +261,7 @@ CanvasBackground.prototype.drawOne=function(){
    var vector=GLUtil.vec3normInPlace([
      (this.constructor.rand(360))/360.0,
      (this.constructor.rand(360))/360.0,
-     (this.constructor.rand(360))/360.0]);
+     (this.constructor.rand(30))/30.0]);
    var shape=new Shape(this.context,mesh);
    shape.setScale(radius,radius,radius);
    var material=this.scene.getColor(rgb).setShading(this.materialData);

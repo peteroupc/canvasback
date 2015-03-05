@@ -373,31 +373,42 @@ var tvar44 = m[8]*m[15];
 var tvar45 = m[9]*m[12];
 var tvar46 = m[9]*m[14];
 var tvar47 = m[9]*m[15];
-var det = tvar45*(tvar27-tvar21) + tvar6*(-tvar26+tvar16) + tvar9*(tvar20-tvar15) +
-tvar42*(-tvar27+tvar21) + tvar7*(tvar25-tvar4) + tvar10*(-tvar19+tvar3) +
-tvar43*(tvar26-tvar16) + tvar46*(-tvar25+tvar4) + tvar11*(tvar14-tvar2) +
-tvar44*(-tvar20+tvar15) + tvar47*(tvar19-tvar3) + tvar8*(-tvar14+tvar2);
-if(det==0)return [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
+var tvar48 = tvar14-tvar2;
+var tvar49 = tvar15-tvar20;
+var tvar50 = tvar16-tvar26;
+var tvar51 = tvar19-tvar3;
+var tvar52 = tvar2-tvar14;
+var tvar53 = tvar20-tvar15;
+var tvar54 = tvar21-tvar27;
+var tvar55 = tvar25-tvar4;
+var tvar56 = tvar26-tvar16;
+var tvar57 = tvar27-tvar21;
+var tvar58 = tvar3-tvar19;
+var tvar59 = tvar4-tvar25;
+var det = tvar45*tvar57 + tvar6*tvar50 + tvar9*tvar53 + tvar42*tvar54 + tvar7*tvar55 +
+tvar10*tvar58 + tvar43*tvar56 + tvar46*tvar59 + tvar11*tvar48 + tvar44*tvar49 +
+tvar47*tvar51 + tvar8*tvar52;
+if(det==0)return GLUtil.mat4identity();
 det=1.0/det;
 var r=[]
 r[0] = m[6]*tvar10 - m[7]*tvar7 + tvar41*m[14] - m[5]*tvar11 - tvar38*m[15] + m[5]*tvar8;
 r[1] = m[3]*tvar7 - m[2]*tvar10 - tvar29*m[14] + m[1]*tvar11 + tvar23*m[15] - m[1]*tvar8;
-r[2] = m[13]*(tvar21-tvar27) + m[14]*(tvar26-tvar16) + m[15]*(-tvar20+tvar15);
-r[3] = m[9]*(tvar27-tvar21) + m[10]*(-tvar26+tvar16) + m[11]*(tvar20-tvar15);
+r[2] = m[13]*tvar54 + m[14]*tvar56 + m[15]*tvar49;
+r[3] = m[9]*tvar57 + m[10]*tvar50 + m[11]*tvar53;
 r[4] = m[7]*tvar6 - m[6]*tvar9 - tvar40*m[14] + m[4]*tvar11 + tvar37*m[15] - m[4]*tvar8;
-r[5] = m[2]*tvar9 - m[3]*tvar6 + m[14]*(tvar28-tvar1) + m[15]*(-tvar22+tvar0);
-r[6] = m[12]*(tvar27-tvar21) + m[14]*(-tvar25+tvar4) + m[15]*(tvar19-tvar3);
-r[7] = m[8]*(tvar21-tvar27) + m[10]*(tvar25-tvar4) + m[11]*(-tvar19+tvar3);
-r[8] = m[5]*tvar9 - tvar41*m[12] + tvar40*m[13] - m[4]*tvar10 + m[15]*(-tvar35+tvar32);
-r[9] = tvar29*m[12] - m[1]*tvar9 + m[13]*(-tvar28+tvar1) + m[15]*(tvar17-tvar5);
-r[10] = m[12]*(tvar16-tvar26) + m[13]*(tvar25-tvar4) + m[15]*(-tvar14+tvar2);
-r[11] = m[8]*(tvar26-tvar16) + m[9]*(-tvar25+tvar4) + m[11]*(tvar14-tvar2);
+r[5] = m[2]*tvar9 - m[3]*tvar6 + m[14]*(tvar28-tvar1) + m[15]*(tvar0-tvar22);
+r[6] = m[12]*tvar57 + m[14]*tvar59 + m[15]*tvar51;
+r[7] = m[8]*tvar54 + m[10]*tvar55 + m[11]*tvar58;
+r[8] = m[5]*tvar9 - tvar41*m[12] + tvar40*m[13] - m[4]*tvar10 + m[15]*(tvar32-tvar35);
+r[9] = tvar29*m[12] - m[1]*tvar9 + m[13]*(tvar1-tvar28) + m[15]*(tvar17-tvar5);
+r[10] = m[12]*tvar50 + m[13]*tvar55 + m[15]*tvar52;
+r[11] = m[8]*tvar56 + m[9]*tvar59 + m[11]*tvar48;
 r[12] = tvar38*m[12] - m[5]*tvar6 - tvar37*m[13] + m[4]*tvar7 + m[14]*(tvar35-tvar32);
-r[13] = m[1]*tvar6 - tvar23*m[12] + m[13]*(tvar22-tvar0) + m[14]*(-tvar17+tvar5);
-r[14] = m[12]*(tvar20-tvar15) + m[13]*(-tvar19+tvar3) + m[14]*(tvar14-tvar2);
-r[15] = m[8]*(tvar15-tvar20) + m[9]*(tvar19-tvar3) + m[10]*(-tvar14+tvar2);
+r[13] = m[1]*tvar6 - tvar23*m[12] + m[13]*(tvar22-tvar0) + m[14]*(tvar5-tvar17);
+r[14] = m[12]*tvar53 + m[13]*tvar58 + m[14]*tvar48;
+r[15] = m[8]*tvar49 + m[9]*tvar51 + m[10]*tvar52;
 for(var i=0;i<16;i++){
-r[i]*=det;
+ r[i]*=det;
 }
 return r;
 },
@@ -690,7 +701,7 @@ return "" +
 "uniform vec3 md;\n" + // material diffuse color (0-1 each component). Is multiplied by texture/solid color.
 "uniform vec3 ss;\n" + // source light specular color
 "uniform vec3 ms;\n" + // material specular color (0-1 each comp.).  Affects how intense highlights are.
-"uniform float mshin;\n" + // material shininess (1 or greater).  A higher value results in sharper highlights.
+"uniform float mshin;\n" + // material shininess
 "varying vec2 textureUVVar;\n"+
 "varying vec3 ambientAndSpecularVar;\n" +
 "varying vec3 diffuseVar;\n" +
@@ -739,7 +750,7 @@ return "" +
 "}";
 };
 function MaterialShade(ambient, diffuse, specular,shininess) {
- this.shininess=(shininess==null) ? 1 : Math.max(1,shininess);
+ this.shininess=(shininess==null) ? 1 : Math.max(0,shininess);
  this.ambient=ambient||[0.2,0.2,0.2];
  this.diffuse=diffuse||[1,1,1];
  this.specular=specular||[0.2,0.2,0.2];
