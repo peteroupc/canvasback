@@ -437,10 +437,17 @@ return [
  (m[1] * m[6] - m[0] * m[7])*det,
  (-m[1] * m[3] + m[0] * m[4])*det]
 },
-mat4scaleVec3:function(mat,v3){
-  var scaleX=v3[0];
-  var scaleY=v3[1];
-  var scaleZ=v3[2];
+mat4scaleVec3:function(mat,v3, v3y, v3z){
+  var scaleX,scaleY,scaleZ;
+  if(typeof v3y!="undefined" && typeof v3z!="undefined"){
+      scaleX=v3;
+      scaleY=v3y;
+      scaleZ=v3z;
+  } else {
+      scaleX=v3[0];
+      scaleY=v3[1];
+      scaleZ=v3[2];
+  }
 	return [
 		mat[0]*scaleX, mat[1]*scaleY, mat[2]*scaleZ, mat[3],
 		mat[4]*scaleX, mat[5]*scaleY, mat[6]*scaleZ, mat[7],
@@ -457,7 +464,7 @@ mat4scaledVec3:function(v3){
 mat4translatedVec3:function(v3){
   return [1,0,0,0,0,1,0,0,0,0,1,0,v3[0],v3[1],v3[2],1]
 },
-mat4perspectiveDegrees:function(fovY,aspectRatio,nearZ,farZ){
+mat4perspective:function(fovY,aspectRatio,nearZ,farZ){
  var f = 1/Math.tan(fovY*Math.PI/360);
  var nmf = nearZ-farZ;
  nmf=1/nmf;
@@ -480,11 +487,11 @@ mat4lookat:function(viewerPos, lookingAt, up){
     -GLUtil.vec3dot(viewerPos,f),1];
 },
 mat4ortho:function(l,r,b,t,n,f){
- var width=r-l;
- var height=b-t;
- var depth=n-f;
- return [-2/width,0,0,0,0,-2/height,0,0,0,0,2/depth,0,
-   -(l+r)/width,-(t+b)/height,-(n+f)/depth,1];
+ var width=1/(r-l);
+ var height=1/(t-b);
+ var depth=1/(f-n);
+ return [2*width,0,0,0,0,2*height,0,0,0,0,2*depth,0,
+   -(l+r)*width,-(t+b)*height,-(n+f)*depth,1];
 },
 mat4frustum:function(l,r,b,t,n,f){
  var dn=2*n;
@@ -524,8 +531,12 @@ mat4multiply:function(a,b){
   }
   return dst;
 },
-mat4rotateVecDegrees:function(mat, angle, v){
-v=GLUtil.vec3norm(v);
+mat4rotateVec:function(mat, angle, v, vy, vz){
+if(typeof vy!="undefined" && typeof vz!="undefined"){
+  v=GLUtil.vec3norm([v,vy,vz]);
+} else {
+  v=GLUtil.vec3norm(v);
+}
 angle=angle*Math.PI/180;
 var c = Math.cos(angle);
 var s = Math.sin(angle);
@@ -762,7 +773,7 @@ function MaterialShade(ambient, diffuse, specular,shininess) {
  this.specular=specular||[0.2,0.2,0.2];
 }
 function LightSource(position, diffuse, specular) {
- this.position=position ? [position[0],position[1],position[2],1.0] :[0, 1, 2, 1];
+ this.position=position ? [position[0],position[1],position[2],1.0] :[0, 0, 0, 0];
  this.diffuse=diffuse||[1, 1, 1];
  this.specular=specular||[0.2,0.2,0.2];
 };
@@ -932,9 +943,18 @@ function Scene3D(context){
     this.context.COLOR_BUFFER_BIT |
     this.context.DEPTH_BUFFER_BIT);
 }
+Scene3D.prototype.getWidth=function(){
+ return this.context.viewportWidth*1.0;
+}
+Scene3D.prototype.getHeight=function(){
+ return this.context.viewportHeight*1.0;
+}
+Scene3D.prototype.getAspect=function(){
+ return this.getWidth()/this.getHeight();
+}
 Scene3D.prototype.setPerspective=function(fov, near, far){
- return this.setProjectionMatrix(GLUtil.mat4perspectiveDegrees(fov,
-   this.context.viewportWidth*1.0/this.context.viewportHeight,near,far));
+ return this.setProjectionMatrix(GLUtil.mat4perspective(fov,
+   this.getAspect(),near,far));
 }
 Scene3D.prototype.setAmbient=function(r,g,b,a){
  this.ambient=[r,g,b,(typeof a=="undefined") ? 1.0 : a];
@@ -998,9 +1018,17 @@ function Shape(context,vertfaces){
   this.position=[0,0,0];
   this.vector=[0,0,0];
   this.uniforms=[];
+  this.drawLines=false;
   this._matrixDirty=true;
   this._invTransModel3=GLUtil.mat3identity();
   this.matrix=GLUtil.mat4identity();
+}
+Shape.prototype.setDrawLines=function(value){
+ this.drawLines=value;
+ return this;
+}
+Shape.prototype.getDrawLines=function(){
+ return this.drawLines;
 }
 Shape.VEC2D=2;
 Shape.VEC3D=3;
@@ -1037,12 +1065,13 @@ Shape.prototype._bind=function(context, vertfaces,
 }
 Shape.prototype.setMaterial=function(material){
  this.material=material;
+ return this;
 }
 Shape.prototype._updateMatrix=function(){
   this._matrixDirty=false;
   this.matrix=GLUtil.mat4scaledVec3(this.scale);
   if(this.angle!=0){
-    this.matrix=GLUtil.mat4rotateVecDegrees(this.matrix,this.angle,this.vector);
+    this.matrix=GLUtil.mat4rotateVec(this.matrix,this.angle,this.vector);
   }
   this.matrix[12]+=this.position[0];
   this.matrix[13]+=this.position[1];
@@ -1098,7 +1127,8 @@ Shape.prototype.render=function(program){
    });
   }
   // Draw the shape
-  this.context.drawElements(this.context.TRIANGLES,
+  this.context.drawElements(
+    this.drawLines ? this.context.LINES : this.context.TRIANGLES,
     this.vertfaces.facesLength,
     this.vertfaces.type, 0);
 };
