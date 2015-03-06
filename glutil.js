@@ -388,13 +388,13 @@ return [1,0,0,0,1,0,0,0,1];
 det=1.0/det;
 return [
  (-m[5] * m[7] + m[4] * m[8])*det,
- (m[2] * m[7] - m[1] * m[8])*det,
- (-m[2] * m[4] + m[1] * m[5])*det,
  (m[5] * m[6] - m[3] * m[8])*det,
- (-m[2] * m[6] + m[0] * m[8])*det,
- (m[2] * m[3] - m[0] * m[5])*det,
  (-m[4] * m[6] + m[3] * m[7])*det,
+ (m[2] * m[7] - m[1] * m[8])*det,
+ (-m[2] * m[6] + m[0] * m[8])*det,
  (m[1] * m[6] - m[0] * m[7])*det,
+ (-m[2] * m[4] + m[1] * m[5])*det,
+ (m[2] * m[3] - m[0] * m[5])*det,
  (-m[1] * m[3] + m[0] * m[4])*det]
 },
 mat4scale:function(mat,v3, v3y, v3z){
@@ -680,7 +680,7 @@ var shader="" +
 "varying vec3 colorAttrVar;\n";
 if(!disableShading){
  shader+="uniform mat4 viewInverse; /* internal */\n" +
- "uniform mat3 modelInverseTrans3; /* internal */\n" +
+ "uniform mat3 worldInverseTrans3; /* internal */\n" +
  "uniform float alpha;\n"+
  "uniform vec4 lightPosition;\n" + // source light direction
  "uniform vec3 sa;\n" + // source light ambient color
@@ -709,10 +709,10 @@ if(!disableShading){
 " sdir=normalize(vertexToLight);\n" +
 " attenuation=1.0/(1.0*dist);\n" +
 "}\n"+
-"vec3 transformedNormal=normalize(modelInverseTrans3*normal);\n" +
-"vec3 ambientAndSpecular=sa*ma;\n" +
+"vec3 transformedNormal=normalize(worldInverseTrans3*normal);\n" +
 "float diffInt=dot(transformedNormal,sdir);" +
-"vec3 viewPosition=normalize(vec3(viewInverse*vec4(0,0,0,1)-viewWorldPosition));\n" +
+"vec3 viewPosition=normalize(vec3(viewInverse*vec4(0,0,0,1)-worldPosition));\n" +
+"vec3 ambientAndSpecular=sa*ma;\n" +
 "if(diffInt>=0.0){\n" +
 "   // specular reflection\n" +
 "   ambientAndSpecular+=(ss*ms*pow(max(dot(reflect(-sdir,transformedNormal)," +
@@ -1096,7 +1096,7 @@ Shape.prototype.render=function(program){
     this._updateMatrix();
    }
    uniforms["world"]=this.matrix;
-   uniforms["modelInverseTrans3"]=this._invTransModel3;
+   uniforms["worldInverseTrans3"]=this._invTransModel3;
   }
   uniforms["useColorAttr"]=(this.vertfaces.format==Shape.VEC3DCOLOR) ?
      1.0 : 0.0;
