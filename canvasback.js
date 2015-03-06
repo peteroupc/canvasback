@@ -211,7 +211,6 @@ CanvasBackground.prototype.drawBack=function(){
  if(this.use3d){
   var rgb=this.constructor.hls2rgb(this.hls);
   var uniformValues={};
-  // light data
   this.cubeMesh=GLUtil.createCube(this.context);
   this.sphereMesh=GLUtil.createSphere(this.context);
   var amb=8;

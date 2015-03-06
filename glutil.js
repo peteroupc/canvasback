@@ -668,6 +668,7 @@ ShaderProgram._compileShaders=function(context, vertexShader, fragmentShader){
 ShaderProgram.prototype.setLightSource=function(light){
  if(!light)return this;
  this.setUniforms({
+ "sa":[light.ambient[0],light.ambient[1],light.ambient[2]],
  "lightPosition":light.position,
  "sd":light.diffuse,
  "ss":light.specular
@@ -761,20 +762,23 @@ shader+=" gl_FragColor=baseColor;\n";
 shader+="}";
 return shader;
 };
-function LightSource(position, diffuse, specular) {
+function LightSource(position, diffuse, specular, ambient) {
+ this.ambient=ambient || [0,0,0,1.0]
  this.position=position ? [position[0],position[1],position[2],1.0] :[0, 0, 1, 0];
  this.diffuse=diffuse||[1,1,1];
  this.specular=specular||[1,1,1];
 };
-LightSource.directionalLight=function(position,diffuse,specular){
+LightSource.directionalLight=function(position,diffuse,specular,ambient){
  var source=new LightSource()
+ source.ambient=ambient || [0,0,0,1.0]
  source.position=position ? [position[0],position[1],position[2],0.0] : [0,0,1,0];
  source.diffuse=diffuse||[1,1,1];
  source.specular=specular||[1,1,1];
  return source;
 };
-LightSource.pointLight=function(position,diffuse,specular){
+LightSource.pointLight=function(position,diffuse,specular,ambient){
  var source=new LightSource()
+ source.ambient=ambient || [0,0,0,1.0]
  source.position=position ? [position[0],position[1],position[2],1.0] : [0,0,0,0];
  source.diffuse=diffuse||[1,1,1];
  source.specular=specular||[1,1,1];
@@ -782,12 +786,9 @@ LightSource.pointLight=function(position,diffuse,specular){
 };
 
 (function(){
-var Materials=function(context, program){
+var Materials=function(context){
  this.textures={}
  this.context=context;
- this.colorUniform=program.get("color");
- program.setUniforms({"sampler":0});
- this.useTextureUniform=program.get("useTexture");
 }
 Materials.COLOR = 0;
 Materials.TEXTURE = 1;
@@ -809,7 +810,7 @@ Materials.prototype.getTexture=function(name, loadHandler){
    return new Texture(this.textures[name]);
  }
  // Load new texture and cache it
- var tex=new TextureImage(this.context,name, loadHandler,this.useTextureUniform);
+ var tex=new TextureImage(this.context,name, loadHandler);
  this.textures[name]=tex;
  return new Texture(tex);
 }
@@ -830,31 +831,10 @@ function MaterialShade(ambient, diffuse, specular,shininess) {
  this.diffuse=diffuse||[0.8,0.8,0.8];
  this.specular=specular||[0,0,0];
 }
-MaterialShade.prototype.bind=function(program){
- program.setUniforms({
- "mshin":this.shininess,
- "ma":this.ambient,
- "md":this.diffuse,
- "ms":this.specular
- });
-}
-SolidColor.prototype.bind=function(program){
-  var uniforms={};
-  if(this.useTextureUniform!==null){
-   uniforms["useTexture"]=0;
-  }
-  uniforms["color"]=this.color;
-  program.setUniforms(uniforms);
-  if(this.material)this.material.bind(program);
-}
 var Texture=function(texture){
  this.texture=texture;
  this.material=null;
  this.kind=Materials.TEXTURE;
-}
-Texture.prototype.bind=function(program){
- this.texture.bind(program);
- if(this.material)this.material.bind(program);
 }
 Texture.prototype.setParams=function(material){
  this.material=material;
@@ -872,17 +852,6 @@ var TextureImage=function(context, name, loadHandler){
     image.onload=null;
   };
   image.src=name;
-}
-TextureImage.prototype.bind=function(program){
-   if (this.texture!==null) {
-      var useTextureUniform=program.get("useTexture");
-      var uniforms={};
-      uniforms["useTexture"]=1;
-      program.setUniforms(uniforms);
-      this.context.activeTexture(this.context.TEXTURE0);
-      this.context.bindTexture(this.context.TEXTURE_2D,
-        this.texture);
-    }
 }
 Texture.fromImage=function(context,image){
   function isPowerOfTwo(a){
@@ -916,6 +885,36 @@ Texture.fromImage=function(context,image){
   context.bindTexture(context.TEXTURE_2D, null);
   return texture;
 }
+// Material binding
+MaterialShade.prototype.bind=function(program){
+ program.setUniforms({
+ "mshin":this.shininess,
+ "ma":this.ambient,
+ "md":this.diffuse,
+ "ms":this.specular
+ });
+}
+SolidColor.prototype.bind=function(program){
+  var uniforms={};
+  uniforms["useTexture"]=0;
+  uniforms["color"]=this.color;
+  program.setUniforms(uniforms);
+  if(this.material)this.material.bind(program);
+}
+Texture.prototype.bind=function(program){
+ this.texture.bind(program);
+ if(this.material)this.material.bind(program);
+}
+TextureImage.prototype.bind=function(program){
+   if (this.texture!==null) {
+      var uniforms={};
+      uniforms["useTexture"]=1;
+      program.setUniforms(uniforms);
+      this.context.activeTexture(this.context.TEXTURE0);
+      this.context.bindTexture(this.context.TEXTURE_2D,
+        this.texture);
+    }
+}
 window["Materials"]=Materials;
 })(window);
 
@@ -926,27 +925,36 @@ function Scene3D(context){
  this.program=new ShaderProgram(context);
  this.shapes=[];
  this.clearColor=[0,0,0,0];
- this.materials=new Materials(context,this.program);
+ this.materials=new Materials(context);
  this.context.enable(context.BLEND);
- this._projectionMatrix=null;
- this._viewMatrix=null;
- this._matrixDirty=false;
+ this._projectionMatrix=GLUtil.mat4identity();
+ this._viewMatrix=GLUtil.mat4identity();
+ this._matrixDirty=true;
  this._invProjectionView=null;
  this._invTransModel3=null;
  this._invView=null;
- this.ambient=null;
+ this.lightSource=new LightSource();
  this.context.blendFunc(context.SRC_ALPHA,context.ONE_MINUS_SRC_ALPHA);
- this.setProjectionMatrix(GLUtil.mat4identity())
-    .setViewMatrix(GLUtil.mat4identity())
-    .setLightSource(new LightSource())
-    .setAmbient(0,0,0,1.0);
  this.context.enable(this.context.DEPTH_TEST);
  this.context.depthFunc(this.context.LEQUAL);
- this.context.clearColor(0,0,0,1.0);
+ this._setClearColor();
  this.context.clearDepth(999999);
  this.context.clear(
     this.context.COLOR_BUFFER_BIT |
     this.context.DEPTH_BUFFER_BIT);
+}
+Scene3D.prototype._initProgramData=function(){
+  this.program.setUniforms({"sampler":0});
+  this.program.setLightSource(this.lightSource);
+  // update matrix-related uniforms later
+  this._matrixDirty=true;
+}
+Scene3D.prototype.useProgram=function(program){
+ if(!program)throw new Error("invalid program");
+ program.use();
+ this.program=program;
+ this._initProgramData();
+ return this;
 }
 Scene3D.prototype.getWidth=function(){
  return this.context.canvas.width*1.0;
@@ -962,15 +970,18 @@ Scene3D.prototype.setPerspective=function(fov, near, far){
    this.getAspect(),near,far));
 }
 Scene3D.prototype.setAmbient=function(r,g,b,a){
- this.ambient=[r,g,b,(typeof a=="undefined") ? 1.0 : a];
- this.program.setUniforms({
- "sa":[this.ambient[0],this.ambient[1],this.ambient[2]]
- });
+ this.lightSource.ambient=[r,g,b,(typeof a=="undefined") ? 1.0 : a];
+ this.program.setLightSource(this.lightSource);
  return this;
 }
-Scene3D.prototype.setClearColor=function(r,g,b,a){
-  this.context.clearColor(r,g,b,(typeof a=="undefined") ? 1.0 : a);
+Scene3D.prototype._setClearColor=function(){
+  this.context.clearColor(this.clearColor[0],this.clearColor[1],
+    this.clearColor[2],this.clearColor[3]);
   return this;
+}
+Scene3D.prototype.setClearColor=function(r,g,b,a){
+  this.clearColor=[r,g,b,(typeof a=="undefined") ? 1.0 : a];
+  return this._setClearColor();
 }
 Scene3D.prototype.getColor=function(r,g,b,a){
  return this.materials.getColor(r,g,b,a);
@@ -1005,7 +1016,8 @@ Scene3D.prototype.setViewMatrix=function(matrix){
  return this;
 }
 Scene3D.prototype.setLightSource=function(light){
- this.program.setLightSource(light);
+ this.lightSource=light;
+ this.program.setLightSource(this.lightSource);
  return this;
 }
 Scene3D.prototype.render=function(){
