@@ -425,11 +425,19 @@ mat4scale:function(mat,v3, v3y, v3z){
 mat3identity:function(){
  return [1,0,0,0,1,0,0,0,1];
 },
-mat4scaledVec3:function(v3){
-  return [v3[0],0,0,0,0,v3[1],0,0,0,0,v3[2],0,0,0,0,1]
+mat4scaled:function(v3,v3y,v3z){
+  if(typeof v3y!="undefined" && typeof v3z!="undefined"){
+   return [v3,0,0,0,0,v3y,0,0,0,0,v3z,0,0,0,0,1]
+  } else {
+   return [v3[0],0,0,0,0,v3[1],0,0,0,0,v3[2],0,0,0,0,1]
+  }
 },
-mat4translated:function(v3){
-  return [1,0,0,0,0,1,0,0,0,0,1,0,v3[0],v3[1],v3[2],1]
+mat4translated:function(v3,v3y,v3z){
+  if(typeof v3y!="undefined" && typeof v3z!="undefined"){
+   return [1,0,0,0,0,1,0,0,0,0,1,0,v3,v3y,v3z,1]
+  } else {
+   return [1,0,0,0,0,1,0,0,0,0,1,0,v3[0],v3[1],v3[2],1]
+  }
 },
 mat4translate:function(mat,v3,v3y,v3z){
   var x,y,z;
@@ -485,9 +493,12 @@ mat4frustum:function(l,r,b,t,n,f){
  var dn=2*n;
  var onedx=1/(r-l);
  var onedy=1/(t-b);
- var onedz=1/(n-f);
-return [dn*onedx,0,0,0,0,dn*onedy,0,0,(l+r)*onedx,(t+b)*onedy,(f+n)*onedz,-1,
-   0,0,dn*f*onedz,0];
+ var onedz=1/(f-n);
+return [
+    dn*onedx,0,0,0,
+    0,dn*onedy,0,0,
+    (l+r)*onedx,(t+b)*onedy,-(f+n)*onedz,-1,
+   0,0,-(dn*f)*onedz,0];
 },
 mat4scaleInPlace:function(mat,v3){
   var scaleX=v3[0];
@@ -562,8 +573,13 @@ mat[12],mat[13],mat[14],mat[15]]
 };
 
 var ShaderProgram=function(context, vertexShader, fragmentShader){
- if(vertexShader==null)vertexShader=ShaderProgram.getDefaultVertex();
- if(fragmentShader==null)fragmentShader=ShaderProgram.getDefaultFragment();
+ var disableLighting=false;
+ if(vertexShader==null){
+  vertexShader=ShaderProgram.getDefaultVertex(disableLighting);
+ }
+ if(fragmentShader==null){
+  fragmentShader=ShaderProgram.getDefaultFragment(disableLighting);
+ }
  this.program=ShaderProgram._compileShaders(context,vertexShader,fragmentShader);
  this.attributes={};
  this.context=context;
@@ -705,14 +721,13 @@ shader+="void main(){\n" +
 "vec4 positionVec4=vec4(position,1.0);\n";
 if(!disableShading){
  shader+="vec4 worldPosition=world*positionVec4;\n" +
-"vec4 viewWorldPosition=view*world*positionVec4;\n" +
 "vec3 sdir;\n"+
 "float attenuation;\n"+
 "if(lightPosition.w == 0.0){\n" +
 " sdir=normalize(vec3(lightPosition));\n" +
 " attenuation=1.0;\n" +
 "} else {\n"+
-" vec3 vertexToLight=vec3(lightPosition-viewWorldPosition);\n"+
+" vec3 vertexToLight=vec3(lightPosition-worldPosition);\n"+
 " float dist=length(vertexToLight);\n"+
 " sdir=normalize(vertexToLight);\n" +
 " attenuation=1.0/(1.0*dist);\n" +
@@ -762,13 +777,13 @@ shader+=" gl_FragColor=baseColor;\n";
 shader+="}";
 return shader;
 };
-function LightSource(position, diffuse, specular, ambient) {
+function LightSource(position, ambient, diffuse, specular) {
  this.ambient=ambient || [0,0,0,1.0]
  this.position=position ? [position[0],position[1],position[2],1.0] :[0, 0, 1, 0];
  this.diffuse=diffuse||[1,1,1];
  this.specular=specular||[1,1,1];
 };
-LightSource.directionalLight=function(position,diffuse,specular,ambient){
+LightSource.directionalLight=function(position,ambient,diffuse,specular){
  var source=new LightSource()
  source.ambient=ambient || [0,0,0,1.0]
  source.position=position ? [position[0],position[1],position[2],0.0] : [0,0,1,0];
@@ -776,7 +791,7 @@ LightSource.directionalLight=function(position,diffuse,specular,ambient){
  source.specular=specular||[1,1,1];
  return source;
 };
-LightSource.pointLight=function(position,diffuse,specular,ambient){
+LightSource.pointLight=function(position,ambient,diffuse,specular){
  var source=new LightSource()
  source.ambient=ambient || [0,0,0,1.0]
  source.position=position ? [position[0],position[1],position[2],1.0] : [0,0,0,0];
@@ -816,7 +831,7 @@ Materials.prototype.getTexture=function(name, loadHandler){
 }
 var SolidColor=function(context, color){
  this.kind=Materials.COLOR;
- this.material=null;
+ this.material=new MaterialShade();
  this.color=[color[0],color[1],color[2],(color[3]==null ? 1.0 : color[3])];
  this.context=context;
 }
@@ -833,7 +848,7 @@ function MaterialShade(ambient, diffuse, specular,shininess) {
 }
 var Texture=function(texture){
  this.texture=texture;
- this.material=null;
+ this.material=new MaterialShade();
  this.kind=Materials.TEXTURE;
 }
 Texture.prototype.setParams=function(material){
@@ -924,7 +939,7 @@ function Scene3D(context){
     this.context.canvas.width*1.0,this.context.canvas.height*1.0);
  this.program=new ShaderProgram(context);
  this.shapes=[];
- this.clearColor=[0,0,0,0];
+ this.clearColor=[0,0,0,1];
  this.materials=new Materials(context);
  this.context.enable(context.BLEND);
  this._projectionMatrix=GLUtil.mat4identity();
@@ -968,11 +983,6 @@ Scene3D.prototype.getAspect=function(){
 Scene3D.prototype.setPerspective=function(fov, near, far){
  return this.setProjectionMatrix(GLUtil.mat4perspective(fov,
    this.getAspect(),near,far));
-}
-Scene3D.prototype.setAmbient=function(r,g,b,a){
- this.lightSource.ambient=[r,g,b,(typeof a=="undefined") ? 1.0 : a];
- this.program.setLightSource(this.lightSource);
- return this;
 }
 Scene3D.prototype._setClearColor=function(){
   this.context.clearColor(this.clearColor[0],this.clearColor[1],
@@ -1067,7 +1077,7 @@ Shape.prototype.setMaterial=function(material){
 }
 Shape.prototype._updateMatrix=function(){
   this._matrixDirty=false;
-  this.matrix=GLUtil.mat4scaledVec3(this.scale);
+  this.matrix=GLUtil.mat4scaled(this.scale);
   if(this.angle!=0){
     this.matrix=GLUtil.mat4rotate(this.matrix,this.angle,this.vector);
   }

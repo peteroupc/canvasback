@@ -215,7 +215,7 @@ CanvasBackground.prototype.drawBack=function(){
   this.sphereMesh=GLUtil.createSphere(this.context);
   var amb=8;
   this.scene=new Scene3D(this.context)
-    .setAmbient(amb,amb,amb)
+    .setLightSource(LightSource.directionalLight([0,0,1],[8,8,8]))
     .setProjectionMatrix(GLUtil.mat4identity())
     .setClearColor(rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0, 1.0);
   this.materialData=this.scene.getMaterialParams(
