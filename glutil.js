@@ -847,6 +847,7 @@ var Texture=function(texture){
 }
 Texture.prototype.bind=function(program){
  this.texture.bind(program);
+ if(this.material)this.material.bind(program);
 }
 Texture.prototype.setParams=function(material){
  this.material=material;
@@ -875,7 +876,6 @@ TextureImage.prototype.bind=function(program){
       this.context.bindTexture(this.context.TEXTURE_2D,
         this.texture);
     }
-    if(this.material)this.material.bind(program);
 }
 Texture.fromImage=function(context,image){
   function isPowerOfTwo(a){
