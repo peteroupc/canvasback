@@ -165,16 +165,23 @@ var bCache=[];
 var tris=[];
 var vertices=[];
 var newStrip;
-for (var i=0;i<divisions;i++) {
+for (var i=divisions-1;i>=0;i--) {
  var a=-90.0+(180.0*i/divisions);
  var rada=Math.PI/180*a;
  var ca=Math.cos(rada);
  var sa=Math.sin(rada);
- var radada=Math.PI/180*(a+da)
- var cada=Math.cos(radada);
- var sada=Math.sin(radada);
- aCache.push(ca,sa);
- adaCache.push(cada,sada);
+ aCache[i*2]=ca;
+ aCache[i*2+1]=sa;
+ if(i==divisions-1){
+  var radada=Math.PI/180*(a+da)
+  var cada=Math.cos(radada);
+  var sada=Math.sin(radada);
+  adaCache[i*2]=cada;
+  adaCache[i*2+1]=sada;
+ } else {
+  adaCache[i*2]=aCache[i*2+2];
+  adaCache[i*2+1]=aCache[i*2+3];
+ }
 }
 for (var i=0;i<divisions*2;i++) {
  var b=(360.0*i/divisions);
