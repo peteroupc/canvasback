@@ -203,6 +203,7 @@ if(tx2<0)tx2+=1;
 x = -cb * ca;
 y = sa;
 z = sb * ca;
+// set position and normal
 vertices.push(radius*x,radius*y,radius*z,-x,-y,-z,0,0);
 x = -cb * cada;
 y = sada;
@@ -211,6 +212,7 @@ vertices.push(radius*x,radius*y,radius*z,-x,-y,-z,0,0);
 if(!newStrip){
   var index=(vertices.length/8)-4;
   var startVert=index*8+6;
+  // set texture coordinates
   vertices[startVert]=tx1;
   vertices[startVert+1]=ty1;
   vertices[startVert+8]=tx1;
@@ -469,7 +471,7 @@ mat4ortho:function(l,r,b,t,n,f){
  var width=1/(r-l);
  var height=1/(t-b);
  var depth=1/(f-n);
- return [2*width,0,0,0,0,2*height,0,0,0,0,2*depth,0,
+ return [2*width,0,0,0,0,2*height,0,0,0,0,-2*depth,0,
    -(l+r)*width,-(t+b)*height,-(n+f)*depth,1];
 },
 mat4frustum:function(l,r,b,t,n,f){
@@ -594,9 +596,6 @@ ShaderProgram.prototype.get=function(name){
 }
 ShaderProgram.prototype.use=function(){
  this.context.useProgram(this.program);
- for(var i=0;i<this.attributes.length;i++){
-  this.context.enableVertexAttribArray(this.attributes[i]);
- }
  return this;
 }
 ShaderProgram.prototype.setUniforms=function(uniforms){
@@ -668,16 +667,6 @@ ShaderProgram.prototype.setLightSource=function(light){
  });
  return this;
 }
-ShaderProgram.prototype.setMaterialShade=function(shade){
- if(!shade)return this;
- this.setUniforms({
- "mshin":shade.shininess,
- "ma":shade.ambient,
- "md":shade.diffuse,
- "ms":shade.specular
- });
- return this;
-}
 ShaderProgram.getDefaultVertex=function(disableShading){
 var shader="" +
 "attribute vec3 position;\n" +
@@ -723,7 +712,7 @@ if(!disableShading){
 "vec3 transformedNormal=normalize(modelInverseTrans3*normal);\n" +
 "vec3 ambientAndSpecular=sa*ma;\n" +
 "float diffInt=dot(transformedNormal,sdir);" +
-"vec3 viewPosition=normalize(vec3(viewInverse*vec4(0,0,0,1)-worldPosition));\n" +
+"vec3 viewPosition=normalize(vec3(viewInverse*vec4(0,0,0,1)-viewWorldPosition));\n" +
 "if(diffInt>=0.0){\n" +
 "   // specular reflection\n" +
 "   ambientAndSpecular+=(ss*ms*pow(max(dot(reflect(-sdir,transformedNormal)," +
@@ -742,8 +731,8 @@ ShaderProgram.getDefaultFragment=function(disableShading){
 var shader="" +
 "precision highp float;\n" +
 "uniform sampler2D sampler;\n" + // texture sampler
-"uniform float useTexture;\n" + // use texture sampler rather than solid color if nonzero
-"uniform float useColorAttr;\n" + // use color attribute
+"uniform float useTexture;\n" + // use texture sampler rather than solid color if 1
+"uniform float useColorAttr;\n" + // use color attribute if 1
 "uniform vec4 color;\n" + // solid color
 "varying vec2 textureUVVar;\n"+
 "varying vec3 colorAttrVar;\n";
@@ -765,31 +754,23 @@ shader+=" gl_FragColor=baseColor;\n";
 shader+="}";
 return shader;
 };
-function MaterialShade(ambient, diffuse, specular,shininess) {
- this.shininess=(shininess==null) ? 1 : Math.max(0,shininess);
- this.ambient=ambient||[0.25,0.25,0.25];
- this.diffuse=diffuse||[1,1,1];
- this.specular=specular||[.2,.2,.2];
-}
 function LightSource(position, diffuse, specular) {
- this.position=position ? [position[0],position[1],position[2],1.0] :[0, 0, 0, 0];
- this.diffuse=diffuse||[0.75,0.75,0.75];
+ this.position=position ? [position[0],position[1],position[2],1.0] :[0, 0, 1, 0];
+ this.diffuse=diffuse||[1,1,1];
  this.specular=specular||[1,1,1];
 };
 LightSource.directionalLight=function(position,diffuse,specular){
  var source=new LightSource()
- source.direction=null;
- source.position=position ? [position[0],position[1],position[2],0.0] : [0,1,2,1];
- source.diffuse=diffuse||[0.75,0.75,0.75];
+ source.position=position ? [position[0],position[1],position[2],0.0] : [0,0,1,0];
+ source.diffuse=diffuse||[1,1,1];
  source.specular=specular||[1,1,1];
  return source;
 };
 LightSource.pointLight=function(position,diffuse,specular){
  var source=new LightSource()
- source.direction=null;
- source.position=position ? [position[0],position[1],position[2],1.0] : [0,1,2,1];
+ source.position=position ? [position[0],position[1],position[2],1.0] : [0,0,0,0];
  source.diffuse=diffuse||[1,1,1];
- source.specular=specular||[0.2,0.2,0.2];
+ source.specular=specular||[1,1,1];
  return source
 };
 
@@ -803,6 +784,7 @@ var Materials=function(context, program){
 }
 Materials.COLOR = 0;
 Materials.TEXTURE = 1;
+Materials.PARAMS = 2;
 Materials.prototype.getColor=function(r,g,b){
  if(typeof r=="number" && typeof g=="number" &&
     typeof b=="number"){
@@ -810,6 +792,9 @@ Materials.prototype.getColor=function(r,g,b){
  }
  // treat r as a 3-element RGB array
  return new SolidColor(this.context,r);
+}
+Materials.prototype.getMaterialParams=function(am,di,sp,sh){
+ return new MaterialShade(am,di,sp,sh);
 }
 Materials.prototype.getTexture=function(name, loadHandler){
  // Get cached texture
@@ -827,9 +812,24 @@ var SolidColor=function(context, color){
  this.color=[color[0],color[1],color[2],(color[3]==null ? 1.0 : color[3])];
  this.context=context;
 }
-SolidColor.prototype.setShading=function(material){
+SolidColor.prototype.setParams=function(material){
  this.material=material;
  return this;
+}
+function MaterialShade(ambient, diffuse, specular,shininess) {
+ this.kind=Materials.PARAMS;
+ this.shininess=(shininess==null) ? 1 : Math.min(Math.max(0,shininess),128);
+ this.ambient=ambient||[0.2,0.2,0.2];
+ this.diffuse=diffuse||[0.8,0.8,0.8];
+ this.specular=specular||[0,0,0];
+}
+MaterialShade.prototype.bind=function(program){
+ program.setUniforms({
+ "mshin":this.shininess,
+ "ma":this.ambient,
+ "md":this.diffuse,
+ "ms":this.specular
+ });
 }
 SolidColor.prototype.bind=function(program){
   var uniforms={};
@@ -838,7 +838,7 @@ SolidColor.prototype.bind=function(program){
   }
   uniforms["color"]=this.color;
   program.setUniforms(uniforms);
-  program.setMaterialShade(this.material);
+  if(this.material)this.material.bind(program);
 }
 var Texture=function(texture){
  this.texture=texture;
@@ -848,7 +848,7 @@ var Texture=function(texture){
 Texture.prototype.bind=function(program){
  this.texture.bind(program);
 }
-Texture.prototype.setShading=function(material){
+Texture.prototype.setParams=function(material){
  this.material=material;
  return this;
 }
@@ -875,7 +875,7 @@ TextureImage.prototype.bind=function(program){
       this.context.bindTexture(this.context.TEXTURE_2D,
         this.texture);
     }
-    program.setMaterialShade(this.material);
+    if(this.material)this.material.bind(program);
 }
 Texture.fromImage=function(context,image){
   function isPowerOfTwo(a){
@@ -932,8 +932,7 @@ function Scene3D(context){
  this.setProjectionMatrix(GLUtil.mat4identity())
     .setViewMatrix(GLUtil.mat4identity())
     .setLightSource(new LightSource())
-    .setAmbient(0.2,0.2,0.2,1.0);
- this.program.setMaterialShade(new MaterialShade());
+    .setAmbient(0,0,0,1.0);
  this.context.enable(this.context.DEPTH_TEST);
  this.context.depthFunc(this.context.LEQUAL);
  this.context.clearColor(0,0,0,1.0);
@@ -968,6 +967,9 @@ Scene3D.prototype.setClearColor=function(r,g,b,a){
 }
 Scene3D.prototype.getColor=function(r,g,b,a){
  return this.materials.getColor(r,g,b,a);
+}
+Scene3D.prototype.getMaterialParams=function(am,di,sp,sh){
+ return this.materials.getMaterialParams(am,di,sp,sh);
 }
 Scene3D.prototype.getTexture=function(name){
  return this.materials.getTexture(name);
@@ -1066,13 +1068,6 @@ Shape.prototype.setScale=function(x,y,z){
 }
 Shape.prototype.setPosition=function(x,y,z){
   this.position=[x,y,z];
-  this._matrixDirty=true;
-  return this;
-}
-Shape.prototype.rotate=function(angle,vector){
-  this.angle+=angle;
-  this.angle%=360;
-  this.vector=vector;
   this._matrixDirty=true;
   return this;
 }
