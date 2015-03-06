@@ -102,16 +102,16 @@ createCube:function(context){
  return GLUtil.createVerticesAndFaces(
    context,vertices,faces,Shape.VEC3DNORMALUV);
 },
-recalcNormals:function(vertices,faces){
-  for(var i=0;i<vertices.length;i+=8){
+recalcNormals:function(vertices,faces,stride){
+  for(var i=0;i<vertices.length;i+=stride){
     vertices[i+3]=0.0
     vertices[i+4]=0.0
     vertices[i+5]=0.0
   }
   for(var i=0;i<vertices.length;i+=3){
-    var v1=faces[i]*8
-    var v2=faces[i+1]*8
-    var v3=faces[i+2]*8
+    var v1=faces[i]*stride
+    var v2=faces[i+1]*stride
+    var v3=faces[i+2]*stride
     var n1=[vertices[v2]-vertices[v3],vertices[v2+1]-vertices[v3+1],vertices[v2+2]-vertices[v3+2]]
     var n2=[vertices[v1]-vertices[v3],vertices[v1+1]-vertices[v3+1],vertices[v1+2]-vertices[v3+2]]
     // cross multiply n1 and n2
@@ -138,7 +138,7 @@ recalcNormals:function(vertices,faces){
     }
   }
   // Normalize each normal of the vertex
-  for(var i=0;i<vertices.length;i+=8){
+  for(var i=0;i<vertices.length;i+=stride){
     var x=vertices[i+3];
     var y=vertices[i+4];
     var z=vertices[i+5];
@@ -151,123 +151,81 @@ recalcNormals:function(vertices,faces){
     }
   }
 },
-createSphere:function(context,radius,count) {
- if(typeof radius=="undefined")radius=1.0;
- if(typeof div=="undefined")count=6;
- function pushMidpoint(points,a,b){
-  var newpt=GLUtil.vec3normInPlace([
-    (points[a]+points[b])*0.5,
-    (points[a+1]+points[b+1])*0.5,
-    (points[a+2]+points[b+2])*0.5]);
-  points.push(newpt[0],newpt[1],newpt[2],0,0,0,0,0);
- }
- function adjustPoleTex(points,tris,triOffset,pointPole,point2,point3){
-   var tx;
-   var pxPole=tris[triOffset+pointPole]*8;
-   var px2=tris[triOffset+point2]*8;
-   var px3=tris[triOffset+point3]*8;
-   var tx=(points[px2+6]+points[px3+6])*0.5;
-   if(Math.abs(points[px2+6]-points[px3+6])>0.5){
-        var point2Less=(points[px2+6]<points[px3+6]) ? true : false;
-        var lowpt=point2Less ? point2 : point3;
-        var lowpx=point2Less ? px2 : px3;
-        var tx2=points[lowpx+6]+1;
-        tris[triOffset+lowpt]=points.length/8;
-        points.push(points[lowpx],points[lowpx+1],points[lowpx+2],
-           0,0,0,tx2,points[lowpx+7]);
-        tx=(point2Less) ? tx2+points[px3+6] : tx2+points[px2+6];
-        tx/=2
-   }
-   tris[triOffset+pointPole]=points.length/8;
-   points.push(points[pxPole],points[pxPole+1],points[pxPole+2],
-         0,0,0,tx,points[pxPole+7]);
- }
- var t=0.5773502691896258
- var points=[t,t,t,0,0,0,0,0,
-  -t,-t,t,0,0,0,0,0,
-  -t,t,-t,0,0,0,0,0,
-  t,-t,-t,0,0,0,0,0];
- var tris=[0,1,3,0,2,1,3,2,0,2,3,1];
- for(var i=0;i<count;i++){
-  var facesCount=tris.length;
-  for(var j=0;j<facesCount;j+=3){
-   var t1=tris[j];
-   var t2=tris[j+1];
-   var t3=tris[j+2];
-   var point1=t1*8;
-   var point2=t2*8;
-   var point3=t3*8;
-   var pointIndex=points.length/8;
-   pushMidpoint(points,point1,point2);
-   pushMidpoint(points,point2,point3);
-   pushMidpoint(points,point3,point1);
-   tris[j]=pointIndex;
-   tris[j+1]=pointIndex+1;
-   tris[j+2]=pointIndex+2;
-   tris.push(
-    t1,pointIndex,pointIndex+2,
-    t2,pointIndex+1,pointIndex,
-    t3,pointIndex+2,pointIndex+1);
-  }
- }
- // Calculate texture coordinates
- for(var i=0;i<points.length;i+=8){
-   points[i+6]=1-(0.5+(Math.atan2(points[i],points[i+2])/(Math.PI*2)));
-   points[i+7]=1-(Math.acos(points[i+1])/Math.PI);
-  }
-  // Adjust texture coordinates
-  for(var j=0;j<tris.length;j+=3){
-   var point1=tris[j]*8;
-   var point2=tris[j+1]*8;
-   var point3=tris[j+2]*8;
-   if(points[point1]==0 && points[point1+2]==0){
-      adjustPoleTex(points,tris,j,0,1,2);continue
-   } else if(points[point2]==0 && points[point2+2]==0){
-      adjustPoleTex(points,tris,j,1,0,2);continue
-   } else if(points[point3]==0 && points[point3+2]==0){
-      adjustPoleTex(points,tris,j,2,0,1);continue
-   }
-   var px1=points[point1+6];
-   var px2=points[point2+6];
-   var px3=points[point3+6];
-   var mintx=(px1<px2) ? (px1<px3 ? point1 : point3) :
-     (px2<px3 ? point2 : point3);
-   var maxtx=(px1>px2) ? (px1>px3 ? point1 : point3) :
-     (px2>px3 ? point2 : point3);
-   var midtx=(point1==mintx || point1==maxtx) ? ((point2==mintx || point2==maxtx) ?
-         point3 : point2) : point1
-   if((points[maxtx+6]-points[mintx+6])>0.5){
-      var newIndex;
-      newIndex=points.length/8;
-      points.push(points[mintx],points[mintx+1],points[mintx+2],
-         0,0,0,points[mintx+6]+1.0,points[mintx+7]);
-      if(point1==mintx)tris[j]=newIndex;
-      else if(point2==mintx)tris[j+1]=newIndex;
-      else tris[j+2]=newIndex;
-      farEnd=newIndex*8;
-      if((points[maxtx+6]-points[midtx+6])>0.5){
-       newIndex=points.length/8;
-       var mend=points[midtx+6]+1.0
-       points.push(points[midtx],points[midtx+1],points[midtx+2],
-          0,0,0,points[midtx+6]+1.0,points[midtx+7]);
-       if(point1==midtx)tris[j]=newIndex;
-       else if(point2==midtx)tris[j+1]=newIndex;
-       else tris[j+2]=newIndex;
-       midEnd=newIndex*8;
-      }
-   }
-  }
-  // Multiply vertices by the given radius
- if(radius!=1.0){
-  for(var i=0;i<points.length;i+=8){
-     points[i]*=radius;
-     points[i+1]*=radius;
-     points[i+2]*=radius;
-  }
-  }
- GLUtil.recalcNormals(points,tris);
- return GLUtil.createVerticesAndFaces(
-   context,points,tris,Shape.VEC3DNORMALUV);
+createSphere:function(context,radius,div){
+var radius = 1.0;
+var x, y, z;
+if(typeof radius=="undefined")radius=1.0;
+if(typeof div=="undefined")div=6;
+if(div<=0)throw new Error("div must be 1 or more")
+var divisions=1<<div;
+var da=(180.0/divisions);
+var aCache=[];
+var adaCache=[];
+var bCache=[];
+var tris=[];
+var vertices=[];
+var newStrip;
+for (var i=0;i<divisions;i++) {
+ var a=-90.0+(180.0*i/divisions);
+ var rada=Math.PI/180*a;
+ var ca=Math.cos(rada);
+ var sa=Math.sin(rada);
+ var radada=Math.PI/180*(a+da)
+ var cada=Math.cos(radada);
+ var sada=Math.sin(radada);
+ aCache.push(ca,sa);
+ adaCache.push(cada,sada);
+}
+for (var i=0;i<divisions*2;i++) {
+ var b=(360.0*i/divisions);
+ var radb=Math.PI/180*b;
+ var cb=Math.cos(radb);
+ var sb=Math.sin(radb);
+ bCache.push(cb,sb);
+}
+for (var i=0;i<divisions;i++) {
+newStrip=true;
+var ca=aCache[i*2];
+var sa=aCache[i*2+1];
+var cada=adaCache[i*2];
+var sada=adaCache[i*2+1];
+var ty1=i*1.0/divisions;
+var ty2=(i+1)*1.0/divisions;
+var oldtx1=0;
+var oldtx2=0;
+for (var j=0;j<divisions*2;j++) {
+var cb=bCache[j*2];
+var sb=bCache[j*2+1];
+var tx1=tx2;
+var tx2=(divisions-j)*1.0/(divisions);
+tx2-=0.25;
+if(tx2<0)tx2+=1;
+x = -cb * ca;
+y = sa;
+z = sb * ca;
+vertices.push(radius*x,radius*y,radius*z,-x,-y,-z,0,0);
+x = -cb * cada;
+y = sada;
+z = sb * cada;
+vertices.push(radius*x,radius*y,radius*z,-x,-y,-z,0,0);
+if(!newStrip){
+  var index=(vertices.length/8)-4;
+  var startVert=index*8+6;
+  vertices[startVert]=tx1;
+  vertices[startVert+1]=ty1;
+  vertices[startVert+8]=tx1;
+  vertices[startVert+9]=ty2;
+  vertices[startVert+16]=tx2;
+  vertices[startVert+17]=ty2;
+  vertices[startVert+24]=tx2;
+  vertices[startVert+25]=ty1;
+  tris.push(index,index+1,index+2,index+1,index+2,index+3);
+}
+newStrip=false;
+}
+}
+return GLUtil.createVerticesAndFaces(
+   context,vertices,tris,Shape.VEC3DNORMALUV);
 },
 vec3cross:function(a,b){
 return [a[1]*b[2]-a[2]*b[1],
@@ -437,7 +395,7 @@ return [
  (m[1] * m[6] - m[0] * m[7])*det,
  (-m[1] * m[3] + m[0] * m[4])*det]
 },
-mat4scaleVec3:function(mat,v3, v3y, v3z){
+mat4scale:function(mat,v3, v3y, v3z){
   var scaleX,scaleY,scaleZ;
   if(typeof v3y!="undefined" && typeof v3z!="undefined"){
       scaleX=v3;
@@ -461,8 +419,29 @@ mat3identity:function(){
 mat4scaledVec3:function(v3){
   return [v3[0],0,0,0,0,v3[1],0,0,0,0,v3[2],0,0,0,0,1]
 },
-mat4translatedVec3:function(v3){
+mat4translated:function(v3){
   return [1,0,0,0,0,1,0,0,0,0,1,0,v3[0],v3[1],v3[2],1]
+},
+mat4translate:function(mat,v3,v3y,v3z){
+  var x,y,z;
+  if(typeof v3y!="undefined" && typeof v3z!="undefined"){
+      x=v3;
+      y=v3y;
+      z=v3z;
+  } else {
+      x=v3[0];
+      y=v3[1];
+      z=v3[2];
+  }
+  return [
+  mat[0],mat[1],mat[2],mat[3],
+  mat[4],mat[5],mat[6],mat[7],
+  mat[8],mat[9],mat[10],mat[11],
+  mat[0] * x + mat[4] * y + mat[8] * z + mat[12],
+  mat[1] * x + mat[5] * y + mat[9] * z + mat[13],
+  mat[2] * x + mat[6] * y + mat[10] * z + mat[14],
+  mat[3] * x + mat[7] * y + mat[11] * z + mat[15]
+  ]
 },
 mat4perspective:function(fovY,aspectRatio,nearZ,farZ){
  var f = 1/Math.tan(fovY*Math.PI/360);
@@ -501,7 +480,7 @@ mat4frustum:function(l,r,b,t,n,f){
 return [dn*onedx,0,0,0,0,dn*onedy,0,0,(l+r)*onedx,(t+b)*onedy,(f+n)*onedz,-1,
    0,0,dn*f*onedz,0];
 },
-mat4scaleVec3InPlace:function(mat,v3){
+mat4scaleInPlace:function(mat,v3){
   var scaleX=v3[0];
   var scaleY=v3[1];
   var scaleZ=v3[2];
@@ -531,7 +510,7 @@ mat4multiply:function(a,b){
   }
   return dst;
 },
-mat4rotateVec:function(mat, angle, v, vy, vz){
+mat4rotate:function(mat, angle, v, vy, vz){
 if(typeof vy!="undefined" && typeof vz!="undefined"){
   v=GLUtil.vec3norm([v,vy,vz]);
 } else {
@@ -699,31 +678,36 @@ ShaderProgram.prototype.setMaterialShade=function(shade){
  });
  return this;
 }
-ShaderProgram.getDefaultVertex=function(){
-return "" +
+ShaderProgram.getDefaultVertex=function(disableShading){
+var shader="" +
 "attribute vec3 position;\n" +
 "attribute vec3 normal;\n" +
 "attribute vec2 textureUV;\n" +
+"attribute vec3 colorAttr;\n" +
 "uniform mat4 world;\n" +
 "uniform mat4 view;\n" +
-"uniform mat4 viewInverse; /* internal */\n" +
-"uniform mat3 modelInverseTrans3; /* internal */\n" +
-"uniform mat4 projection;\n" +
-"uniform float alpha;\n"+
-"uniform vec4 lightPosition;\n" + // source light direction
-"uniform vec3 sa;\n" + // source light ambient color
-"uniform vec3 ma;\n" + // material ambient color (-1 to -1 each component).
-"uniform vec3 sd;\n" + // source light diffuse color
-"uniform vec3 md;\n" + // material diffuse color (0-1 each component). Is multiplied by texture/solid color.
-"uniform vec3 ss;\n" + // source light specular color
-"uniform vec3 ms;\n" + // material specular color (0-1 each comp.).  Affects how intense highlights are.
-"uniform float mshin;\n" + // material shininess
+"uniform mat4 projection;\n"+
 "varying vec2 textureUVVar;\n"+
-"varying vec3 ambientAndSpecularVar;\n" +
-"varying vec3 diffuseVar;\n" +
-"void main(){\n" +
-"vec4 positionVec4=vec4(position,1.0);\n" +
-"vec4 worldPosition=world*positionVec4;\n" +
+"varying vec3 colorAttrVar;\n";
+if(!disableShading){
+ shader+="uniform mat4 viewInverse; /* internal */\n" +
+ "uniform mat3 modelInverseTrans3; /* internal */\n" +
+ "uniform float alpha;\n"+
+ "uniform vec4 lightPosition;\n" + // source light direction
+ "uniform vec3 sa;\n" + // source light ambient color
+ "uniform vec3 ma;\n" + // material ambient color (-1 to 1 each component).
+ "uniform vec3 sd;\n" + // source light diffuse color
+ "uniform vec3 md;\n" + // material diffuse color (0-1 each component). Is multiplied by texture/solid color.
+ "uniform vec3 ss;\n" + // source light specular color
+ "uniform vec3 ms;\n" + // material specular color (0-1 each comp.).  Affects how intense highlights are.
+ "uniform float mshin;\n" + // material shininess
+ "varying vec3 ambientAndSpecularVar;\n" +
+ "varying vec3 diffuseVar;\n";
+}
+shader+="void main(){\n" +
+"vec4 positionVec4=vec4(position,1.0);\n";
+if(!disableShading){
+ shader+="vec4 worldPosition=world*positionVec4;\n" +
 "vec4 viewWorldPosition=view*world*positionVec4;\n" +
 "vec3 sdir;\n"+
 "float attenuation;\n"+
@@ -746,43 +730,58 @@ return "" +
 "      viewPosition),0.0),mshin));\n" +
 "}\n"+
 "diffuseVar=sd*md*max(0.0,dot(transformedNormal,sdir))*attenuation;\n" +
-"ambientAndSpecularVar=ambientAndSpecular;\n"+
-"textureUVVar=textureUV;\n"+
-"gl_Position=projection*view*world*positionVec4;\n" +
+"ambientAndSpecularVar=ambientAndSpecular;\n";
+}
+shader+="colorAttrVar=colorAttr;\n";
+shader+="textureUVVar=textureUV;\n";
+shader+="gl_Position=projection*view*world*positionVec4;\n" +
 "}";
+return shader;
 };
-ShaderProgram.getDefaultFragment=function(){
-return "" +
+ShaderProgram.getDefaultFragment=function(disableShading){
+var shader="" +
 "precision highp float;\n" +
 "uniform sampler2D sampler;\n" + // texture sampler
-"uniform int useTexture;\n" + // use texture sampler rather than solid color if nonzero
+"uniform float useTexture;\n" + // use texture sampler rather than solid color if nonzero
+"uniform float useColorAttr;\n" + // use color attribute
 "uniform vec4 color;\n" + // solid color
 "varying vec2 textureUVVar;\n"+
-"varying vec3 ambientAndSpecularVar;\n" +
-"varying vec3 diffuseVar;\n" +
-"void main(){\n" +
-" vec4 baseColor=(useTexture==0) ? color : texture2D(sampler,textureUVVar);\n" +
-" vec3 phong=ambientAndSpecularVar+diffuseVar*baseColor.rgb;\n" +
-" gl_FragColor=vec4(phong,baseColor.a);\n" +
-"}";
+"varying vec3 colorAttrVar;\n";
+if(!disableShading){
+ shader+="varying vec3 ambientAndSpecularVar;\n" +
+ "varying vec3 diffuseVar;\n";
+}
+shader+="void main(){\n" +
+" vec4 baseColor=color*(1.0-useTexture) +\n"+
+"  texture2D(sampler,textureUVVar)*useTexture;\n"+
+" baseColor=baseColor*(1.0-useColorAttr) +\n"+
+"  vec4(colorAttrVar,1.0)*useColorAttr;\n";
+if(!disableShading){
+shader+=" vec3 phong=ambientAndSpecularVar+diffuseVar*baseColor.rgb;\n" +
+" gl_FragColor=vec4(phong,baseColor.a);\n";
+} else {
+shader+=" gl_FragColor=baseColor;\n";
+}
+shader+="}";
+return shader;
 };
 function MaterialShade(ambient, diffuse, specular,shininess) {
  this.shininess=(shininess==null) ? 1 : Math.max(0,shininess);
- this.ambient=ambient||[0.2,0.2,0.2];
+ this.ambient=ambient||[0.25,0.25,0.25];
  this.diffuse=diffuse||[1,1,1];
- this.specular=specular||[0.2,0.2,0.2];
+ this.specular=specular||[.2,.2,.2];
 }
 function LightSource(position, diffuse, specular) {
  this.position=position ? [position[0],position[1],position[2],1.0] :[0, 0, 0, 0];
- this.diffuse=diffuse||[1, 1, 1];
- this.specular=specular||[0.2,0.2,0.2];
+ this.diffuse=diffuse||[0.75,0.75,0.75];
+ this.specular=specular||[1,1,1];
 };
 LightSource.directionalLight=function(position,diffuse,specular){
  var source=new LightSource()
  source.direction=null;
  source.position=position ? [position[0],position[1],position[2],0.0] : [0,1,2,1];
- source.diffuse=diffuse||[1,1,1];
- source.specular=specular||[0.2,0.2,0.2];
+ source.diffuse=diffuse||[0.75,0.75,0.75];
+ source.specular=specular||[1,1,1];
  return source;
 };
 LightSource.pointLight=function(position,diffuse,specular){
@@ -807,10 +806,10 @@ Materials.TEXTURE = 1;
 Materials.prototype.getColor=function(r,g,b){
  if(typeof r=="number" && typeof g=="number" &&
     typeof b=="number"){
-   return new SolidColor(this.context,[r,g,b],this.colorUniform);
+   return new SolidColor(this.context,[r,g,b]);
  }
  // treat r as a 3-element RGB array
- return new SolidColor(this.context,r,this.colorUniform);
+ return new SolidColor(this.context,r);
 }
 Materials.prototype.getTexture=function(name, loadHandler){
  // Get cached texture
@@ -944,10 +943,10 @@ function Scene3D(context){
     this.context.DEPTH_BUFFER_BIT);
 }
 Scene3D.prototype.getWidth=function(){
- return this.context.viewportWidth*1.0;
+ return this.context.canvas.width*1.0;
 }
 Scene3D.prototype.getHeight=function(){
- return this.context.viewportHeight*1.0;
+ return this.context.canvas.height*1.0;
 }
 Scene3D.prototype.getAspect=function(){
  return this.getWidth()/this.getHeight();
@@ -1027,42 +1026,20 @@ Shape.prototype.setDrawLines=function(value){
  this.drawLines=value;
  return this;
 }
+Shape.prototype.setMatrix=function(value){
+ this._matrixDirty=false;
+ this.matrix=value;
+ this._invTransModel3=GLUtil.mat4inverseTranspose3(this.matrix);
+ return this;
+}
 Shape.prototype.getDrawLines=function(){
  return this.drawLines;
 }
 Shape.VEC2D=2;
 Shape.VEC3D=3;
+Shape.VEC3DNORMALUV=6;
 Shape.VEC3DNORMAL=5;
-Shape._vertexAttrib=function(context, attrib, size, type, stride, offset){
-  if(attrib!==null){
-    context.enableVertexAttribArray(attrib);
-    context.vertexAttribPointer(attrib,size,type,false,stride,offset);
-  }
-}
-Shape.prototype._bind=function(context, vertfaces,
-  attribPosition, attribNormal, attribUV){
-  context.bindBuffer(context.ARRAY_BUFFER, vertfaces.verts);
-  context.bindBuffer(context.ELEMENT_ARRAY_BUFFER, vertfaces.faces);
-  var format=vertfaces.format;
-  if(format==Shape.VEC3DNORMAL){
-   Shape._vertexAttrib(context,attribPosition, 3, context.FLOAT, 6*4, 0);
-   Shape._vertexAttrib(context,attribNormal, 3,
-    context.FLOAT, 6*4, 3*4);
-  } else if(format==Shape.VEC3DNORMALUV){
-   Shape._vertexAttrib(context,attribPosition, 3,
-    context.FLOAT, 8*4, 0);
-   Shape._vertexAttrib(context,attribNormal, 3,
-    context.FLOAT, 8*4, 3*4);
-   Shape._vertexAttrib(context,attribUV, 2,
-    context.FLOAT, 8*4, 6*4);
-  } else if(format==Shape.VEC2D){
-   Shape._vertexAttrib(context,attribPosition, 2,
-     context.FLOAT, 2*4, 0);
-  } else if(format==Shape.VEC3D){
-   Shape._vertexAttrib(context,attribPosition, 3,
-     context.FLOAT, 3*4, 0);
-  }
-}
+Shape.VEC3DCOLOR=7;
 Shape.prototype.setMaterial=function(material){
  this.material=material;
  return this;
@@ -1071,7 +1048,7 @@ Shape.prototype._updateMatrix=function(){
   this._matrixDirty=false;
   this.matrix=GLUtil.mat4scaledVec3(this.scale);
   if(this.angle!=0){
-    this.matrix=GLUtil.mat4rotateVec(this.matrix,this.angle,this.vector);
+    this.matrix=GLUtil.mat4rotate(this.matrix,this.angle,this.vector);
   }
   this.matrix[12]+=this.position[0];
   this.matrix[13]+=this.position[1];
@@ -1106,29 +1083,68 @@ Shape.prototype.setRotation=function(angle, vector){
   return this;
 }
 Shape.prototype.render=function(program){
-  // Bind vertex attributes
-  this._bind(this.context,this.vertfaces,
-    program.get("position"),
-    program.get("normal"),
-    program.get("textureUV"));
   // Set material (texture or color)
   if(this.material){
    this.material.bind(program);
   }
+  // Bind vertex attributes
+  Shape._bind(this.context,this.vertfaces,
+    program.get("position"),
+    program.get("normal"),
+    program.get("textureUV"),
+    program.get("colorAttr"));
   // Set world matrix
   var uniformMatrix=program.get("world");
+  var uniforms={};
   if(uniformMatrix!==null){
    if(this._matrixDirty){
     this._updateMatrix();
    }
-   program.setUniforms({
-    "world":this.matrix,
-    "modelInverseTrans3":this._invTransModel3
-   });
+   uniforms["world"]=this.matrix;
+   uniforms["modelInverseTrans3"]=this._invTransModel3;
   }
+  uniforms["useColorAttr"]=(this.vertfaces.format==Shape.VEC3DCOLOR) ?
+     1.0 : 0.0;
+  program.setUniforms(uniforms);
   // Draw the shape
   this.context.drawElements(
     this.drawLines ? this.context.LINES : this.context.TRIANGLES,
     this.vertfaces.facesLength,
     this.vertfaces.type, 0);
 };
+/////////////
+Shape._vertexAttrib=function(context, attrib, size, type, stride, offset){
+  if(attrib!==null){
+    context.enableVertexAttribArray(attrib);
+    context.vertexAttribPointer(attrib,size,type,false,stride,offset);
+  }
+}
+Shape._bind=function(context, vertfaces,
+  attribPosition, attribNormal, attribUV,attribColor){
+  context.bindBuffer(context.ARRAY_BUFFER, vertfaces.verts);
+  context.bindBuffer(context.ELEMENT_ARRAY_BUFFER, vertfaces.faces);
+  var format=vertfaces.format;
+  if(format==Shape.VEC3DNORMAL){
+   Shape._vertexAttrib(context,attribPosition, 3, context.FLOAT, 6*4, 0);
+   Shape._vertexAttrib(context,attribNormal, 3,
+    context.FLOAT, 6*4, 3*4);
+  } else if(format==Shape.VEC3DNORMALUV){
+   Shape._vertexAttrib(context,attribPosition, 3,
+    context.FLOAT, 8*4, 0);
+   Shape._vertexAttrib(context,attribNormal, 3,
+    context.FLOAT, 8*4, 3*4);
+   Shape._vertexAttrib(context,attribUV, 2,
+    context.FLOAT, 8*4, 6*4);
+  } else if(format==Shape.VEC3DCOLOR){
+   Shape._vertexAttrib(context,attribPosition, 3,
+    context.FLOAT, 6*4, 0);
+   Shape._vertexAttrib(context,attribColor, 3,
+    context.FLOAT, 6*4, 3*4);
+  } else if(format==Shape.VEC2D){
+   Shape._vertexAttrib(context,attribPosition, 2,
+     context.FLOAT, 2*4, 0);
+  } else if(format==Shape.VEC3D){
+   Shape._vertexAttrib(context,attribPosition, 3,
+     context.FLOAT, 3*4, 0);
+  }
+}
