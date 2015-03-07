@@ -215,11 +215,9 @@ CanvasBackground.prototype.drawBack=function(){
   this.sphereMesh=GLUtil.createSphere(this.context);
   var amb=8;
   this.scene=new Scene3D(this.context)
-    .setLightSource(LightSource.directionalLight([0,0,1],[8,8,8]))
+    .setLightSource(LightSource.directionalLight([0,0,1],[0.25,0.25,0.25]))
     .setProjectionMatrix(GLUtil.mat4identity())
     .setClearColor(rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0, 1.0);
-  this.materialData=this.scene.getMaterialParams(
-   [0.03,0.03,0.03],[1.0,1.0,1.0],[0,0,0],1);
  } else {
   this.context.fillStyle=this.constructor.hls2hex(this.hls);
   this.context.fillRect(0,0,this.width,this.height);
@@ -259,7 +257,7 @@ CanvasBackground.prototype.drawOne=function(){
      (this.constructor.rand(30))/30.0]);
    var shape=new Shape(this.context,mesh);
    shape.setScale(radius,radius,radius);
-   var material=this.scene.getColor(rgb).setParams(this.materialData);
+   var material=this.scene.getColor(rgb);
    if(mesh!=this.sphereMesh || material.kind==Materials.TEXTURE){
     // spheres can't be rotated without a texture
     shape.setRotation(angle,vector);
