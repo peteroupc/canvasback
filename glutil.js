@@ -930,6 +930,7 @@ TextureImage.prototype.bind=function(program){
         this.texture);
     }
 }
+window["MaterialShade"]=MaterialShade;
 window["Materials"]=Materials;
 })(window);
 
@@ -983,6 +984,14 @@ Scene3D.prototype.getAspect=function(){
 Scene3D.prototype.setPerspective=function(fov, near, far){
  return this.setProjectionMatrix(GLUtil.mat4perspective(fov,
    this.getAspect(),near,far));
+}
+Scene3D.prototype.setFrustum=function(left, right, bottom, top, near, far){
+ return this.setProjectionMatrix(GLUtil.mat4frustum(
+   left, right, top, bottom, near, far));
+}
+Scene3D.prototype.setOrtho=function(left, right, bottom, top, near, far){
+ return this.setProjectionMatrix(GLUtil.mat4ortho(
+   left, right, top, bottom, near, far));
 }
 Scene3D.prototype._setClearColor=function(){
   this.context.clearColor(this.clearColor[0],this.clearColor[1],
@@ -1042,7 +1051,7 @@ Scene3D.prototype.render=function(){
 function Shape(context,vertfaces){
   this.vertfaces=vertfaces;
   this.context=context;
-  this.material=null;
+  this.material=new MaterialShade();
   this.scale=[1,1,1];
   this.angle=0;
   this.position=[0,0,0];
