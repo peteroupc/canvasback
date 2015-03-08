@@ -264,7 +264,7 @@ CanvasBackground.prototype.drawOne=function(){
    }
    shape.setPosition(x,y,z);
    shape.setMaterial(material);
-   this.scene.shapes.push(shape);
+   this.scene.addShape(shape);
  } else {
   var rect=[this.constructor.rand(this.width+30)-30,
     this.constructor.rand(this.height+30)-30,
