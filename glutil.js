@@ -15,9 +15,6 @@ renderLoop:function(func){
   };
   GLUtil.callRequestFrame(selfRefFunc);
 },
-createVerticesAndFaces:function(context, vertices, faces, format){
- return new Mesh(vertices,faces,format).bind(context);
-},
 get3DOr2DContext:function(canvasElement){
   if(!canvasElement)return null;
   var context=null;
@@ -79,57 +76,7 @@ createCube:function(context){
  // Position X, Y, Z, normal NX, NY, NZ, texture U, V
  var vertices=[-1.0,-1.0,1.0,1.0,0.0,0.0,1.0,1.0,-1.0,1.0,1.0,1.0,0.0,0.0,1.0,0.0,-1.0,1.0,-1.0,1.0,0.0,0.0,0.0,0.0,-1.0,-1.0,-1.0,1.0,0.0,0.0,0.0,1.0,1.0,-1.0,-1.0,-1.0,0.0,0.0,1.0,1.0,1.0,1.0,-1.0,-1.0,0.0,0.0,1.0,0.0,1.0,1.0,1.0,-1.0,0.0,0.0,0.0,0.0,1.0,-1.0,1.0,-1.0,0.0,0.0,0.0,1.0,1.0,-1.0,-1.0,0.0,1.0,0.0,1.0,1.0,1.0,-1.0,1.0,0.0,1.0,0.0,1.0,0.0,-1.0,-1.0,1.0,0.0,1.0,0.0,0.0,0.0,-1.0,-1.0,-1.0,0.0,1.0,0.0,0.0,1.0,1.0,1.0,1.0,0.0,-1.0,0.0,1.0,1.0,1.0,1.0,-1.0,0.0,-1.0,0.0,1.0,0.0,-1.0,1.0,-1.0,0.0,-1.0,0.0,0.0,0.0,-1.0,1.0,1.0,0.0,-1.0,0.0,0.0,1.0,-1.0,-1.0,-1.0,0.0,0.0,1.0,1.0,1.0,-1.0,1.0,-1.0,0.0,0.0,1.0,1.0,0.0,1.0,1.0,-1.0,0.0,0.0,1.0,0.0,0.0,1.0,-1.0,-1.0,0.0,0.0,1.0,0.0,1.0,1.0,-1.0,1.0,0.0,0.0,-1.0,1.0,1.0,1.0,1.0,1.0,0.0,0.0,-1.0,1.0,0.0,-1.0,1.0,1.0,0.0,0.0,-1.0,0.0,0.0,-1.0,-1.0,1.0,0.0,0.0,-1.0,0.0,1.0]
  var faces=[0,1,2,0,2,3,4,5,6,4,6,7,8,9,10,8,10,11,12,13,14,12,14,15,16,17,18,16,18,19,20,21,22,20,22,23]
- return GLUtil.createVerticesAndFaces(
-   context,vertices,faces,Mesh.VEC3DNORMALUV);
-},
-recalcNormals:function(vertices,faces,stride){
-  for(var i=0;i<vertices.length;i+=stride){
-    vertices[i+3]=0.0
-    vertices[i+4]=0.0
-    vertices[i+5]=0.0
-  }
-  for(var i=0;i<vertices.length;i+=3){
-    var v1=faces[i]*stride
-    var v2=faces[i+1]*stride
-    var v3=faces[i+2]*stride
-    var n1=[vertices[v2]-vertices[v3],vertices[v2+1]-vertices[v3+1],vertices[v2+2]-vertices[v3+2]]
-    var n2=[vertices[v1]-vertices[v3],vertices[v1+1]-vertices[v3+1],vertices[v1+2]-vertices[v3+2]]
-    // cross multiply n1 and n2
-    var x=n1[1]*n2[2]-n1[2]*n2[1]
-    var y=n1[2]*n2[0]-n1[0]*n2[2]
-    var z=n1[0]*n2[1]-n1[1]*n2[0]
-    // normalize xyz vector
-    len=Math.sqrt(x*x+y*y+z*z);
-    if(len!=0){
-      len=1.0/len;
-      x*=len;
-      y*=len;
-      z*=len;
-      // add normalized normal to each vertex of the face
-      vertices[v1+3]+=x
-      vertices[v1+4]+=y
-      vertices[v1+5]+=z
-      vertices[v2+3]+=x
-      vertices[v2+4]+=y
-      vertices[v2+5]+=z
-      vertices[v3+3]+=x
-      vertices[v3+4]+=y
-      vertices[v3+5]+=z
-    }
-  }
-  // Normalize each normal of the vertex
-  for(var i=0;i<vertices.length;i+=stride){
-    var x=vertices[i+3];
-    var y=vertices[i+4];
-    var z=vertices[i+5];
-    len=Math.sqrt(x*x+y*y+z*z);
-    if(len){
-      len=1.0/len;
-      vertices[i+3]=x*len;
-      vertices[i+4]=y*len;
-      vertices[i+5]=z*len;
-    }
-  }
+ return new Mesh(vertices,faces,Mesh.VEC3DNORMALUV);
 },
 createSphere:function(context,radius,div){
 var radius = 1.0;
@@ -236,8 +183,7 @@ if(!newStrip){
 newStrip=false;
 }
 }
-return GLUtil.createVerticesAndFaces(
-   context,vertices,tris,Mesh.VEC3DNORMALUV);
+return new Mesh(vertices,tris,Mesh.VEC3DNORMALUV);
 },
 loadObjFromUrl:function(context, url, handlers){
  var xhr=new XMLHttpRequest();
@@ -250,9 +196,7 @@ loadObjFromUrl:function(context, url, handlers){
    } catch(e){};
    var obj=GLUtil.loadObj(rt);
    if(handlers.onload && obj){
-    var mesh=GLUtil.createVerticesAndFaces(
-      context,obj[0],obj[1],Mesh.VEC3DNORMALUV);
-    handlers.onload(urlstr, mesh);
+    handlers.onload(urlstr, obj);
    }
    if(handlers.onerror && !obj)
     handlers.onerror(urlstr);
@@ -310,6 +254,7 @@ loadObj:function(str){
  var normals=[];
  var uvs=[];
  var faces=[];
+ var currentFaces=[];
  var lookBack=0;
  var vertexKind=-1;
  for(var i=0;i<lines.length;i++){
@@ -352,7 +297,6 @@ loadObj:function(str){
      if(faceCount>=4 && (/\d+/).exec(line)){
       throw new Error("more than 4 vertices in one face not supported: "+oldline)
      }
-     faceCount++;
      e=vertexOnly.exec(line)
      if(e){
       if(vertexKind!=0){
@@ -362,6 +306,7 @@ loadObj:function(str){
       var vtx=parseInt(e[1],10)-1;
       pushVertex(resolvedVertices, faces, lookBack,
         vertices[vtx][0],vertices[vtx][1],vertices[vtx][2],0,0,0,0,0);
+      currentFaces[faceCount]=faces[faces.length-1];
       line=line.substr(e[0].length);
       continue;
      }
@@ -376,6 +321,7 @@ loadObj:function(str){
       pushVertex(resolvedVertices, faces, lookBack,
         vertices[vtx][0],vertices[vtx][1],vertices[vtx][2],
         normals[norm][0],normals[norm][1],normals[norm][2],0,0);
+      currentFaces[faceCount]=faces[faces.length-1];
       line=line.substr(e[0].length);
       continue;
      }
@@ -390,6 +336,7 @@ loadObj:function(str){
       pushVertex(resolvedVertices, faces, lookBack,
         vertices[vtx][0],vertices[vtx][1],vertices[vtx][2],
         0,0,0,uvs[uv][0],uvs[uv][1],0,0);
+      currentFaces[faceCount]=faces[faces.length-1];
       line=line.substr(e[0].length);
       continue;
      }
@@ -406,11 +353,16 @@ loadObj:function(str){
         vertices[vtx][0],vertices[vtx][1],vertices[vtx][2],
         normals[norm][0],normals[norm][1],normals[norm][2],
         uvs[uv][0],uvs[uv][1]);
+      currentFaces[faceCount]=faces[faces.length-1];
       line=line.substr(e[0].length);
       continue;
      }
+     faceCount++;
      if(faceCount==4){
-      throw new Error("TODO");
+      // Add the second triangle in the quad
+      faces[faces.length-1]=currentFaces[2];
+      faces.push(currentFaces[1]);
+      faces.push(currentFaces[3]);
      }
      throw new Error("unsupported face: "+oldline)
     }
@@ -429,7 +381,7 @@ loadObj:function(str){
  if(normals.length==0){
   GLUtil.recalcNormals(vertices,8);
  }
- return [resolvedVertices,faces]
+ return new Mesh(resolvedVertices,faces,Mesh.VEC3DNORMALUV);
 }
 };
 
@@ -726,8 +678,63 @@ Mesh.prototype.bind=function(context){
  return {verts:vertbuffer, faces:facebuffer,
    facesLength: this.faces.length, type:type, format:this.format};
 }
+Mesh._recalcNormals=function(vertices,faces,stride){
+  for(var i=0;i<vertices.length;i+=stride){
+    vertices[i+3]=0.0
+    vertices[i+4]=0.0
+    vertices[i+5]=0.0
+  }
+  for(var i=0;i<vertices.length;i+=3){
+    var v1=faces[i]*stride
+    var v2=faces[i+1]*stride
+    var v3=faces[i+2]*stride
+    var n1=[vertices[v2]-vertices[v3],vertices[v2+1]-vertices[v3+1],vertices[v2+2]-vertices[v3+2]]
+    var n2=[vertices[v1]-vertices[v3],vertices[v1+1]-vertices[v3+1],vertices[v1+2]-vertices[v3+2]]
+    // cross multiply n1 and n2
+    var x=n1[1]*n2[2]-n1[2]*n2[1]
+    var y=n1[2]*n2[0]-n1[0]*n2[2]
+    var z=n1[0]*n2[1]-n1[1]*n2[0]
+    // normalize xyz vector
+    len=Math.sqrt(x*x+y*y+z*z);
+    if(len!=0){
+      len=1.0/len;
+      x*=len;
+      y*=len;
+      z*=len;
+      // add normalized normal to each vertex of the face
+      vertices[v1+3]+=x
+      vertices[v1+4]+=y
+      vertices[v1+5]+=z
+      vertices[v2+3]+=x
+      vertices[v2+4]+=y
+      vertices[v2+5]+=z
+      vertices[v3+3]+=x
+      vertices[v3+4]+=y
+      vertices[v3+5]+=z
+    }
+  }
+  // Normalize each normal of the vertex
+  for(var i=0;i<vertices.length;i+=stride){
+    var x=vertices[i+3];
+    var y=vertices[i+4];
+    var z=vertices[i+5];
+    len=Math.sqrt(x*x+y*y+z*z);
+    if(len){
+      len=1.0/len;
+      vertices[i+3]=x*len;
+      vertices[i+4]=y*len;
+      vertices[i+5]=z*len;
+    }
+  }
+}
 Mesh.prototype.recalcNormals=function(){
- // TODO
+  if(this.format==Mesh.VEC3NORMAL){
+   Mesh._recalcNormals(this.vertices,this.faces,6);
+  } else if(this.format==Mesh.VEC3NORMALUV){
+   Mesh._recalcNormals(this.vertices,this.faces,8);
+  } else {
+   throw new Error("not supported");
+  }
 };
 
 (function(){
@@ -965,7 +972,12 @@ Scene3D.prototype.render=function(){
 }
 
 function Shape(context,vertfaces){
-  this.vertfaces=vertfaces;
+  if(vertfaces==null)throw new Error("vertfaces is null");
+  if(vertfaces.constructor==Mesh){
+   this.vertfaces=vertfaces.bind(context);
+  } else {
+   this.vertfaces=vertfaces;
+  }
   this.context=context;
   this.material=new MaterialShade();
   this.scale=[1,1,1];
