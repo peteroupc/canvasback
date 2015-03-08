@@ -216,7 +216,7 @@ CanvasBackground.prototype.drawBack=function(){
   var amb=8;
   this.scene=new Scene3D(this.context)
     .setLightSource(LightSource.directionalLight([0,0,1],[0.25,0.25,0.25]))
-    .setProjectionMatrix(GLUtil.mat4identity())
+    .setProjectionMatrix(GLMath.mat4identity())
     .setClearColor(rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0, 1.0);
  } else {
   this.context.fillStyle=this.constructor.hls2hex(this.hls);
@@ -251,7 +251,7 @@ CanvasBackground.prototype.drawOne=function(){
   rgb[1]/=255
   rgb[2]/=255
    var angle=this.constructor.rand(160);
-   var vector=GLUtil.vec3normInPlace([
+   var vector=GLMath.vec3normInPlace([
      (this.constructor.rand(360))/360.0,
      (this.constructor.rand(360))/360.0,
      (this.constructor.rand(30))/30.0]);
