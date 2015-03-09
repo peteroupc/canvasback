@@ -72,6 +72,45 @@ callRequestFrame:function(func){
   window.setTimeout(func,17);
  }
 },
+getPromiseResults:function(promises,
+   progressResolve, progressReject){
+ // Utility function that returns a promise that
+ // resolves after the given list of promises finishes
+ // its work.  The result will be an object with
+ // two keys:
+ // successes - contains a list of results from the
+ // promises that succeeded
+ // failures - contains a list of results from the
+ // promises that failed
+ // --- Parameters:
+ // promises - an array containing promise objects
+ // progressResolve - a function called as each
+ //  individual promise is resolved; optional
+ // progressReject - a function called as each
+ //  individual promise is rejected; optional
+ if(!promises || promises.length==0){
+  return Promise.resolve({
+    successes:[], failures:[]});
+ }
+ return new Promise(function(resolve, reject){
+  var ret={successes:[], failures:[]};
+  var totalPromises=promises.length;
+  var count=0;
+  for(var i=0;i<totalPromises;i++){
+   promises[i].then(function(result){
+    ret.successes.push(result);
+    if(progressResolve)progressResolve(result);
+    count++;
+    if(count==totalPromises){ resolve(ret); }
+   }, function(result){
+    ret.failures.push(result);
+    if(progressReject)progressReject(result);
+    count++;
+    if(count==totalPromises){ resolve(ret); }
+   });
+  }
+ });
+},
 createCube:function(){
  // Position X, Y, Z, normal NX, NY, NZ, texture U, V
  var vertices=[-1.0,-1.0,1.0,1.0,0.0,0.0,1.0,1.0,-1.0,1.0,1.0,1.0,0.0,0.0,1.0,0.0,-1.0,1.0,-1.0,1.0,0.0,0.0,0.0,0.0,-1.0,-1.0,-1.0,1.0,0.0,0.0,0.0,1.0,1.0,-1.0,-1.0,-1.0,0.0,0.0,1.0,1.0,1.0,1.0,-1.0,-1.0,0.0,0.0,1.0,0.0,1.0,1.0,1.0,-1.0,0.0,0.0,0.0,0.0,1.0,-1.0,1.0,-1.0,0.0,0.0,0.0,1.0,1.0,-1.0,-1.0,0.0,1.0,0.0,1.0,1.0,1.0,-1.0,1.0,0.0,1.0,0.0,1.0,0.0,-1.0,-1.0,1.0,0.0,1.0,0.0,0.0,0.0,-1.0,-1.0,-1.0,0.0,1.0,0.0,0.0,1.0,1.0,1.0,1.0,0.0,-1.0,0.0,1.0,1.0,1.0,1.0,-1.0,0.0,-1.0,0.0,1.0,0.0,-1.0,1.0,-1.0,0.0,-1.0,0.0,0.0,0.0,-1.0,1.0,1.0,0.0,-1.0,0.0,0.0,1.0,-1.0,-1.0,-1.0,0.0,0.0,1.0,1.0,1.0,-1.0,1.0,-1.0,0.0,0.0,1.0,1.0,0.0,1.0,1.0,-1.0,0.0,0.0,1.0,0.0,0.0,1.0,-1.0,-1.0,0.0,0.0,1.0,0.0,1.0,1.0,-1.0,1.0,0.0,0.0,-1.0,1.0,1.0,1.0,1.0,1.0,0.0,0.0,-1.0,1.0,0.0,-1.0,1.0,1.0,0.0,0.0,-1.0,0.0,0.0,-1.0,-1.0,1.0,0.0,0.0,-1.0,0.0,1.0]
@@ -513,6 +552,9 @@ var ShaderProgram=function(context, vertexShader, fragmentShader){
   this.actives=ret;
  }
 }
+ShaderProgram.prototype.getContext=function(){
+ return this.context;
+}
 ShaderProgram.prototype.get=function(name){
  return (!this.actives.hasOwnProperty(name)) ?
    null : this.actives[name];
@@ -871,40 +913,69 @@ var TextureManager=function(context){
  this.textures={}
  this.context=context;
 }
-TextureManager.prototype.getTexture=function(name, loadHandler){
+TextureManager.prototype.loadTexture=function(name){
  // Get cached texture
  if(this.textures[name] && this.textures.hasOwnProperty(name)){
    var ret=new Texture(this.textures[name]);
-   if(loadHandler)loadHandler(ret.texture);
-   return ret;
+   return Promise.resolve(ret);
  }
+ var texImage=new TextureImage(name);
+ this.textures[name]=texImage;
  // Load new texture and cache it
- var tex=new TextureImage(this.context,name, loadHandler);
- this.textures[name]=tex;
- return new Texture(tex);
-}
+ return texImage.loadImage().then(
+  function(result){
+   return new Texture(result);
+  },
+  function(name){
+    return name.name;
+  });
+};
+
+TextureManager.prototype.loadTextureAndMap=function(name, context){
+  return this.loadTexture(name).then(function(result){
+    return result.load(context);
+  });
+};
 var Texture=function(texture){
+ if(!texture)throw new Error();
  this.texture=texture;
+ this.name=texture.name;
  this.material=new MaterialShade();
 }
 Texture.prototype.setParams=function(material){
  this.material=material;
  return this;
 }
-var TextureImage=function(context, name, loadHandler){
+Texture.prototype.load=function(context){
+ this.texture.load(context);
+ return this;
+}
+var TextureImage=function(name){
   this.texture=null;
-  this.context=context;
   this.name=name;
-  var thisObj=this;
+  this.image=null;
+}
+TextureImage.prototype.loadImage=function(){
+ var thisImage=this;
+ var thisName=this.name;
+ return new Promise(function(resolve,reject){
   var image=new Image();
   image.onload=function(e) {
-    thisObj.texture=Texture.fromImage(context,image);
-    if(loadHandler)loadHandler(thisObj);
-    image.onload=null;
-  };
-  image.src=name;
+   var target=e.target;
+   thisImage.image=target;
+   resolve(thisImage);
+  }
+  image.onerror=function(e){
+   reject({name:name});
+  }
+  image.src=thisName;
+ });
 }
-Texture.fromImage=function(context,image){
+TextureImage.prototype.load=function(context){
+  if(this.texture!==null){
+   // already loaded
+   return this;
+  }
   function isPowerOfTwo(a){
    if(Math.floor(a)!=a || a<=0)return false;
    while(a>1 && (a&1)==0){
@@ -912,14 +983,16 @@ Texture.fromImage=function(context,image){
    }
    return (a==1);
   }
-  var texture=context.createTexture();
+  this.texture=context.createTexture();
   context.pixelStorei(context.UNPACK_FLIP_Y_WEBGL, true);
-  context.bindTexture(context.TEXTURE_2D, texture);
+  context.bindTexture(context.TEXTURE_2D, this.texture);
   context.texParameteri(context.TEXTURE_2D,
     context.TEXTURE_MAG_FILTER, context.LINEAR);
   context.texImage2D(context.TEXTURE_2D, 0,
-    context.RGBA, context.RGBA, context.UNSIGNED_BYTE, image);
-  if(isPowerOfTwo(image.width) && isPowerOfTwo(image.height)){
+    context.RGBA, context.RGBA, context.UNSIGNED_BYTE,
+    this.image);
+  if(isPowerOfTwo(this.image.width) &&
+      isPowerOfTwo(this.image.height)){
    // Enable mipmaps if texture's dimensions are powers of two
    context.texParameteri(context.TEXTURE_2D,
      context.TEXTURE_MIN_FILTER, context.LINEAR_MIPMAP_LINEAR);
@@ -934,11 +1007,13 @@ Texture.fromImage=function(context,image){
      context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
   }
   context.bindTexture(context.TEXTURE_2D, null);
-  return texture;
+  return this;
 }
 // Material binding
 Texture.prototype.bind=function(program){
- this.texture.bind(program);
+ if(this.texture!==null){
+  this.texture.bind(program);
+ }
  if(this.material){
    program.setUniforms({
   "mshin":this.material.shininess,
@@ -949,12 +1024,16 @@ Texture.prototype.bind=function(program){
  }
 }
 TextureImage.prototype.bind=function(program){
+   if(this.image!==null && this.texture===null){
+      // load the image if necessary
+      texture.load(program.getContext());
+   }
    if (this.texture!==null) {
       var uniforms={};
       uniforms["useTexture"]=1;
       program.setUniforms(uniforms);
-      this.context.activeTexture(this.context.TEXTURE0);
-      this.context.bindTexture(this.context.TEXTURE_2D,
+      program.getContext().activeTexture(program.getContext().TEXTURE0);
+      program.getContext().bindTexture(program.getContext().TEXTURE_2D,
         this.texture);
     }
 }
@@ -1042,8 +1121,22 @@ Scene3D.prototype.getColor=function(r,g,b,a){
 Scene3D.prototype.getMaterialParams=function(am,di,sp,sh){
  return new MaterialShade(am,di,sp,sh);
 }
-Scene3D.prototype.getTexture=function(name){
- return this.textureManager.getTexture(name);
+Scene3D.prototype.loadTexture=function(name){
+ // Returns a promise with a Texture object result if it resolves
+ return this.textureManager.loadTexture(name);
+}
+Scene3D.prototype.loadTextureAndMap=function(name){
+ // Returns a promise with a Texture object result if it resolves
+ return this.textureManager.loadTextureAndMap(name, this.context);
+}
+Scene3D.prototype.loadTexturesAndMap=function(textureFiles, resolve, reject){
+ var promises=[];
+ for(var i=0;i<textureFiles.length;i++){
+  var objf=textureFiles[i];
+  var p=this.loadTextureAndMap(objf);
+  promises.push(p);
+ }
+ return GLUtil.getPromiseResults(promises, resolve, reject);
 }
 Scene3D.prototype._updateMatrix=function(){
  if(this._matrixDirty){
