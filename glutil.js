@@ -185,33 +185,109 @@ newStrip=false;
 }
 return new Mesh(vertices,tris,Mesh.VEC3DNORMALUV);
 },
-loadObjFromUrl:function(url, handlers){
- var xhr=new XMLHttpRequest();
+loadFileFromUrl:function(url){
  var urlstr=url;
- xhr.onload = function(){
-  if(xhr.status<300){
-   var rt="";
-   try {
-    rt=xhr.responseText;
-   } catch(e){};
-   var obj=GLUtil.loadObj(rt);
-   if(handlers.onload && obj){
-    handlers.onload(urlstr, obj);
-   }
-   if(handlers.onerror && !obj)
-    handlers.onerror(urlstr);
-  } else {
-   // object load failed
-   if(handlers.onerror)
-    handlers.onerror(urlstr);
+ return new Promise(function(resolve, reject){
+   var xhr=new XMLHttpRequest();
+   xhr.onreadystatechange=function(e){
+    var t=e.target;
+    if(t.readyState==4){
+     if(t.status>=200 && t.status<300){
+      var resp=t.response
+      if(!resp)resp=t.responseText
+      resolve({url: urlstr, text: resp+""});
+     } else {
+      reject({url: urlstr});
+     }
+    }
+   };
+   xhr.open("get", url, true);
+   xhr.send();
+ });
+},
+loadMtlFromUrl:function(url){
+ return GLUtil.loadFileFromUrl(url).then(
+   function(e){
+     return {url: e.url, mtl: GLUtil.loadMtl(e.text)};
+   },
+   function(e){
+     return {url: e.url}
+   });
+},
+loadObjFromUrl:function(url){
+ return GLUtil.loadFileFromUrl(url).then(
+   function(e){
+     return {url: e.url, obj: GLUtil.loadObj(e.text)};
+   },
+   function(e){
+     return {url: e.url}
+   });
+},
+loadMtl:function(str){
+ var number="(-?(?:\\d+\\.?\\d*|\\d*\\.\\d+)(?:[Ee][\\+\\-]?\\d+)?)"
+ var nonnegInteger="(\\d+)"
+ var oneNumLine=new RegExp("^(Ns|d|Tr|Ni)\\s+"+number+"\\s*$")
+ var oneIntLine=new RegExp("^(illum)\\s+"+nonnegInteger+"\\s*$")
+ var threeNumLine=new RegExp("^(Kd|Ka|Ks|Ke|Tf)\\s+"+number+"\\s+"+number
+   +"\\s+"+number+"\\s*$")
+ var mapLine=new RegExp("^(map_Kd)\\s+([^\\:\\s]+)$")
+ var newmtlLine=new RegExp("^newmtl\\s+([^\\s]+)$")
+ var faceStart=new RegExp("^f\\s+")
+ var lines=str.split(/\r?\n/)
+ var firstLine=true;
+ var materials={};
+ var currentMat=null;
+ for(var i=0;i<lines.length;i++){
+  var line=lines[i];
+  // skip empty lines
+  if(line.length==0)continue;
+  // skip comments
+  if(line.charAt(0)=="#")continue;
+  while(line.charAt(line.length-1)=="\\" &&
+    i+1<line.length){
+    // The line continues on the next line
+   line=line.substr(0,line.length-1);
+   line+=" "+lines[i+1];
+   i++;
   }
+  if(line.charAt(line.length-1)=="\\"){
+   line=line.substr(0,line.length-1);
+  }
+  if(firstLine && !(/^newmtl\s+/)){
+   return null;
+  }
+  firstLine=false;
+  var e=newmtlLine.exec(line)
+  if(e){
+    var name=e[1];
+    currentMat={};
+    materials[name]=currentMat;
+    continue;
+  }
+  e=threeNumLine.exec(line)
+  if(e){
+    currentMat[e[1]]=[parseFloat(e[2]),parseFloat(e[3]),parseFloat(e[4])];
+    continue;
+  }
+  e=oneNumLine.exec(line)
+  if(e){
+    currentMat[e[1]]=parseFloat(e[2]);
+    continue;
+  }
+  e=mapLine.exec(line)
+  if(e){
+    currentMat[e[1]]=e[2];
+    continue;
+  }
+  e=oneIntLine.exec(line)
+  if(e){
+    currentMat[e[1]]=[parseInt(e[2],10)];
+    continue;
+  }
+  throw new Error("unsupported line: "+line)
  }
- xhr.onerror=function(){
-   if(handlers.onerror)
-    handlers.onerror(urlstr);
- }
- xhr.open("get", url, true);
- xhr.send();
+ console.log(materials)
+ return materials;
 },
 loadObj:function(str){
  function pushVertex(verts,faces,look,
@@ -244,8 +320,8 @@ loadObj:function(str){
    "\\/"+nonnegInteger+"($|\\s+)")
  var vertexLine=new RegExp("^v\\s+"+number+"\\s+"+number+"\\s+"+number+"\\s*$")
  var uvLine=new RegExp("^vt\\s+"+number+"\\s+"+number+"\\s*$")
- var groupLine=new RegExp("^g\\s+.*$")
- var usemtlLine=new RegExp("^usemtl\\s+([^\\:\\s]+)$")
+ var usemtlLine=new RegExp("^(usemtl|o|g|s)\\s+([^\\s]+)\\s*$")
+ var mtllibLine=new RegExp("^(mtllib)\\s+([^\\:\\/\\s]+)\\s*$")
  var normalLine=new RegExp("^vn\\s+"+number+"\\s+"+number+"\\s+"+number+"\\s*")
  var faceStart=new RegExp("^f\\s+")
  var lines=str.split(/\r?\n/)
@@ -255,6 +331,7 @@ loadObj:function(str){
  var uvs=[];
  var faces=[];
  var currentFaces=[];
+ var ret={};
  var lookBack=0;
  var vertexKind=-1;
  for(var i=0;i<lines.length;i++){
@@ -308,6 +385,7 @@ loadObj:function(str){
         vertices[vtx][0],vertices[vtx][1],vertices[vtx][2],0,0,0,0,0);
       currentFaces[faceCount]=faces[faces.length-1];
       line=line.substr(e[0].length);
+     faceCount++;
       continue;
      }
      e=vertexNormalOnly.exec(line)
@@ -323,6 +401,7 @@ loadObj:function(str){
         normals[norm][0],normals[norm][1],normals[norm][2],0,0);
       currentFaces[faceCount]=faces[faces.length-1];
       line=line.substr(e[0].length);
+     faceCount++;
       continue;
      }
      e=vertexUVOnly.exec(line)
@@ -338,6 +417,7 @@ loadObj:function(str){
         0,0,0,uvs[uv][0],uvs[uv][1],0,0);
       currentFaces[faceCount]=faces[faces.length-1];
       line=line.substr(e[0].length);
+     faceCount++;
       continue;
      }
      e=vertexUVNormal.exec(line)
@@ -355,33 +435,40 @@ loadObj:function(str){
         uvs[uv][0],uvs[uv][1]);
       currentFaces[faceCount]=faces[faces.length-1];
       line=line.substr(e[0].length);
+      faceCount++;
       continue;
      }
-     faceCount++;
-     if(faceCount==4){
+     throw new Error("unsupported face: "+oldline)
+    }
+    if(faceCount==4){
       // Add the second triangle in the quad
       faces[faces.length-1]=currentFaces[2];
       faces.push(currentFaces[1]);
       faces.push(currentFaces[3]);
-     }
-     throw new Error("unsupported face: "+oldline)
     }
-    continue;
-  }
-  e=groupLine.exec(line)
-  if(e){
     continue;
   }
   e=usemtlLine.exec(line)
   if(e){
+    if(e[1]=="usemtl"){
+      ret["usemtl"]=e[2];
+    }
+    continue;
+  }
+  e=mtllibLine.exec(line)
+  if(e){
+    if(e[1]=="mtllib"){
+      ret["mtllib"]=e[2];
+    }
     continue;
   }
   throw new Error("unsupported line: "+line)
  }
+ ret["mesh"]=new Mesh(resolvedVertices,faces,Mesh.VEC3DNORMALUV);
  if(normals.length==0){
-  GLUtil.recalcNormals(vertices,8);
+  ret["mesh"].recalcNormals();
  }
- return new Mesh(resolvedVertices,faces,Mesh.VEC3DNORMALUV);
+ return ret;
 }
 };
 
@@ -628,6 +715,46 @@ function MaterialShade(ambient, diffuse, specular,shininess) {
  this.diffuse=diffuse||[0.8,0.8,0.8];
  this.specular=specular||[0,0,0];
 }
+MaterialShade.fromMtl=function(context, mtl){
+ function xyzToRgb(xyz){
+  // convert CIE XYZ to RGB
+  var rgb=[2.2878384873407613*r-0.8333676778352163*g-0.4544707958714208*b,
+    -0.5116513807438615*r+1.4227583763217775*g+0.08889300175529392*b,
+    0.005720409831409596*r-0.01590684851040362*g+1.0101864083734013*b]
+  // ensure RGB value fits in 0..1
+  var w=-Math.min(0,rgb[0],rgb[1],rgb[2]);
+  if(w>0){
+    rgb[0]+=w; rgb[1]+=w; rgb[2]+=w;
+  }
+  w=Math.max(rgb[0],rgb[1],rgb[2]);
+  if(w>1){
+    rgb[0]/=w; rgb[1]/=w; rgb[2]/=w;
+  }
+  return rgb;
+ }
+ var shininess=1.0;
+ var ambient=null;
+ var diffuse=null;
+ var specular=null;
+ var textureName=null;
+ if(mtl.hasOwnProperty("Ns")){
+  shininess=mtl["Ns"];
+ }
+ if(mtl.hasOwnProperty("Kd")){
+  diffuse=xyzToRgb(mtl["Kd"]);
+ }
+ if(mtl.hasOwnProperty("map_Kd")){
+  textureName=mtl["map_Kd"];
+ }
+ if(mtl.hasOwnProperty("Ka")){
+  ambient=xyzToRgb(mtl["Ka"]);
+ }
+ if(mtl.hasOwnProperty("Ks")){
+  specular=xyzToRgb(mtl["Ks"]);
+ }
+ var ret=new MaterialShade(ambient,diffuse,specular,shininess);
+ return ret;
+}
 MaterialShade.fromColor=function(r,g,b,a){
  if(typeof r=="number" && typeof g=="number" &&
     typeof b=="number"){
@@ -729,13 +856,14 @@ Mesh._recalcNormals=function(vertices,faces,stride){
   }
 }
 Mesh.prototype.recalcNormals=function(){
-  if(this.format==Mesh.VEC3NORMAL){
+  if(this.format==Mesh.VEC3DNORMAL){
    Mesh._recalcNormals(this.vertices,this.faces,6);
-  } else if(this.format==Mesh.VEC3NORMALUV){
+  } else if(this.format==Mesh.VEC3DNORMALUV){
    Mesh._recalcNormals(this.vertices,this.faces,8);
   } else {
    throw new Error("not supported");
   }
+  return this;
 };
 
 (function(){

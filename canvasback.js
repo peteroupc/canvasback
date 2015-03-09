@@ -250,10 +250,10 @@ CanvasBackground.prototype.drawOne=function(){
   rgb[1]/=255
   rgb[2]/=255
    var angle=this.constructor.rand(160);
-   var vector=GLMath.vec3normInPlace([
+   var vector=[
      (this.constructor.rand(360))/360.0,
      (this.constructor.rand(360))/360.0,
-     (this.constructor.rand(30))/30.0]);
+     (this.constructor.rand(30))/30.0];
    var shape=new Shape(this.context,mesh)
     .setScale(radius,radius,radius)
     .setRotation(angle,vector)
