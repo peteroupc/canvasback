@@ -72,7 +72,7 @@ callRequestFrame:function(func){
   window.setTimeout(func,17);
  }
 },
-getPromiseResults:function(promises,
+getPromiseResults:function(promises, 
    progressResolve, progressReject){
  // Utility function that returns a promise that
  // resolves after the given list of promises finishes
@@ -926,7 +926,7 @@ TextureManager.prototype.loadTexture=function(name){
   function(result){
    return new Texture(result);
   },
-  function(name){
+  function(name){ 
     return name.name;
   });
 };
@@ -956,6 +956,10 @@ var TextureImage=function(name){
   this.image=null;
 }
 TextureImage.prototype.loadImage=function(){
+ if(this.image!==null){
+  // already loaded
+  return Promise.resolve(this);
+ }
  var thisImage=this;
  var thisName=this.name;
  return new Promise(function(resolve,reject){
@@ -963,7 +967,7 @@ TextureImage.prototype.loadImage=function(){
   image.onload=function(e) {
    var target=e.target;
    thisImage.image=target;
-   resolve(thisImage);
+   resolve(thisImage);   
   }
   image.onerror=function(e){
    reject({name:name});
@@ -989,9 +993,9 @@ TextureImage.prototype.load=function(context){
   context.texParameteri(context.TEXTURE_2D,
     context.TEXTURE_MAG_FILTER, context.LINEAR);
   context.texImage2D(context.TEXTURE_2D, 0,
-    context.RGBA, context.RGBA, context.UNSIGNED_BYTE,
+    context.RGBA, context.RGBA, context.UNSIGNED_BYTE, 
     this.image);
-  if(isPowerOfTwo(this.image.width) &&
+  if(isPowerOfTwo(this.image.width) && 
       isPowerOfTwo(this.image.height)){
    // Enable mipmaps if texture's dimensions are powers of two
    context.texParameteri(context.TEXTURE_2D,
@@ -1025,8 +1029,16 @@ Texture.prototype.bind=function(program){
 }
 TextureImage.prototype.bind=function(program){
    if(this.image!==null && this.texture===null){
-      // load the image if necessary
+      // load the image as a texture
       texture.load(program.getContext());
+   } else if(this.image===null && this.texture===null){
+      var thisObj=this;
+      var prog=program;
+      this.loadImage().then(function(e){
+        // try again loading the image
+        this.bind(program);
+      });
+      return;
    }
    if (this.texture!==null) {
       var uniforms={};
