@@ -188,21 +188,13 @@ CanvasBackground.hls2hex=function(n){
  CanvasBackground.component2hex(n[1])+
  CanvasBackground.component2hex(n[2]);
 };
-CanvasBackground.hex2rgb=function(n){
- if(n==null || typeof n=="undefined")return null;
- var e=(/^\#([A-F0-9]{2})([A-F0-9]{2})([A-F0-9]{2})$/i).exec(n);
- if(e){
-  return [parseInt(e[1],16),parseInt(e[2],16),parseInt(e[3],16)];
- }
- return null;
-};
 CanvasBackground.prototype.start=function(){
  GLUtil.renderLoop(this.animate.bind(this));
 }
 CanvasBackground.prototype["setColor"]=function(color){
- var rgb=this.constructor.hex2rgb(color);
+ var rgb=GLUtil.colorToRgba(color);
  if(!rgb)throw new Error("invalid color parameter");
- this.color=rgb;
+ this.color=[rgb[0],rgb[1],rgb[2]];
  this.hls=this.constructor.rgb2hls(rgb);
  this.drawBack();
 }
