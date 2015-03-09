@@ -72,7 +72,7 @@ callRequestFrame:function(func){
   window.setTimeout(func,17);
  }
 },
-getPromiseResults:function(promises, 
+getPromiseResults:function(promises,
    progressResolve, progressReject){
  // Utility function that returns a promise that
  // resolves after the given list of promises finishes
@@ -592,7 +592,7 @@ var e=null;
   x=x.toLowerCase();
   if(x.indexOf("grey")>=0)x=x.replace("grey","gray");// support "grey" variants
   var ret=namedColors[x];
-  if(typeof ret==="string")return window["colorToRgba"](ret);
+  if(typeof ret==="string")return exports["colorToRgba"](ret);
   if(x==="transparent")return [0,0,0,0];
   return null;
  }
@@ -643,7 +643,6 @@ if(!namedColors){
   }
 };
 })(GLUtil);
-
 
 var ShaderProgram=function(context, vertexShader, fragmentShader){
  var disableLighting=false;
@@ -933,7 +932,7 @@ MaterialShade.fromMtl=function(context, mtl){
 }
 MaterialShade.fromColor=function(r,g,b,a){
  var color=GLUtil.toGLColor(r,g,b,a);
- return new MaterialShade(color);
+ return new MaterialShade(color,color);
 }
 MaterialShade.prototype.bind=function(program){
  program.setUniforms({
@@ -1056,7 +1055,7 @@ TextureManager.prototype.loadTexture=function(name){
   function(result){
    return new Texture(result);
   },
-  function(name){ 
+  function(name){
     return name.name;
   });
 };
@@ -1097,7 +1096,7 @@ TextureImage.prototype.loadImage=function(){
   image.onload=function(e) {
    var target=e.target;
    thisImage.image=target;
-   resolve(thisImage);   
+   resolve(thisImage);
   }
   image.onerror=function(e){
    reject({name:name});
@@ -1123,9 +1122,9 @@ TextureImage.prototype.load=function(context){
   context.texParameteri(context.TEXTURE_2D,
     context.TEXTURE_MAG_FILTER, context.LINEAR);
   context.texImage2D(context.TEXTURE_2D, 0,
-    context.RGBA, context.RGBA, context.UNSIGNED_BYTE, 
+    context.RGBA, context.RGBA, context.UNSIGNED_BYTE,
     this.image);
-  if(isPowerOfTwo(this.image.width) && 
+  if(isPowerOfTwo(this.image.width) &&
       isPowerOfTwo(this.image.height)){
    // Enable mipmaps if texture's dimensions are powers of two
    context.texParameteri(context.TEXTURE_2D,
