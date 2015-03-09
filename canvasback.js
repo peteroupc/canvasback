@@ -254,15 +254,11 @@ CanvasBackground.prototype.drawOne=function(){
      (this.constructor.rand(360))/360.0,
      (this.constructor.rand(360))/360.0,
      (this.constructor.rand(30))/30.0]);
-   var shape=new Shape(this.context,mesh);
-   shape.setScale(radius,radius,radius);
-   var material=this.scene.getColor(rgb);
-   if(mesh!=this.sphereMesh || material.kind==Materials.TEXTURE){
-    // spheres can't be rotated without a texture
-    shape.setRotation(angle,vector);
-   }
-   shape.setPosition(x,y,z);
-   shape.setMaterial(material);
+   var shape=new Shape(this.context,mesh)
+    .setScale(radius,radius,radius)
+    .setRotation(angle,vector)
+    .setPosition(x,y,z)
+    .setColor(rgb);
    this.scene.addShape(shape);
  } else {
   var rect=[this.constructor.rand(this.width+30)-30,

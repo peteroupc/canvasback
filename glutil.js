@@ -623,11 +623,18 @@ LightSource.pointLight=function(position,ambient,diffuse,specular){
 function MaterialShade(ambient, diffuse, specular,shininess) {
  // NOTE: A solid color is defined by setting ambient
  // and diffuse to the same value
- this.kind=Materials.PARAMS;
  this.shininess=(shininess==null) ? 1 : Math.min(Math.max(0,shininess),128);
  this.ambient=ambient||[0.2,0.2,0.2];
  this.diffuse=diffuse||[0.8,0.8,0.8];
  this.specular=specular||[0,0,0];
+}
+MaterialShade.fromColor=function(r,g,b,a){
+ if(typeof r=="number" && typeof g=="number" &&
+    typeof b=="number"){
+   return new MaterialShade([r,g,b],[r,g,b]);
+ }
+ // treat r as a 3-element RGB array
+ return new MaterialShade(r,r);
 }
 MaterialShade.prototype.bind=function(program){
  program.setUniforms({
@@ -738,24 +745,11 @@ Mesh.prototype.recalcNormals=function(){
 };
 
 (function(){
-var Materials=function(context){
+var TextureManager=function(context){
  this.textures={}
  this.context=context;
 }
-Materials.TEXTURE = 1;
-Materials.PARAMS = 2;
-Materials.prototype.getColor=function(r,g,b){
- if(typeof r=="number" && typeof g=="number" &&
-    typeof b=="number"){
-   return new MaterialShade([r,g,b],[r,g,b]);
- }
- // treat r as a 3-element RGB array
- return new MaterialShade(r,r);
-}
-Materials.prototype.getMaterialParams=function(am,di,sp,sh){
- return new MaterialShade(am,di,sp,sh);
-}
-Materials.prototype.getTexture=function(name, loadHandler){
+TextureManager.prototype.getTexture=function(name, loadHandler){
  // Get cached texture
  if(this.textures[name] && this.textures.hasOwnProperty(name)){
    var ret=new Texture(this.textures[name]);
@@ -770,7 +764,6 @@ Materials.prototype.getTexture=function(name, loadHandler){
 var Texture=function(texture){
  this.texture=texture;
  this.material=new MaterialShade();
- this.kind=Materials.TEXTURE;
 }
 Texture.prototype.setParams=function(material){
  this.material=material;
@@ -843,7 +836,7 @@ TextureImage.prototype.bind=function(program){
         this.texture);
     }
 }
-window["Materials"]=Materials;
+window["TextureManager"]=TextureManager;
 })(window);
 
 function Scene3D(context){
@@ -853,7 +846,7 @@ function Scene3D(context){
  this.program=new ShaderProgram(context);
  this.shapes=[];
  this.clearColor=[0,0,0,1];
- this.materials=new Materials(context);
+ this.textureManager=new TextureManager(context);
  this.context.enable(context.BLEND);
  //this.context.enable(context.CULL_FACE);
  this._projectionMatrix=GLMath.mat4identity();
@@ -922,13 +915,13 @@ Scene3D.prototype.setClearColor=function(r,g,b,a){
   return this._setClearColor();
 }
 Scene3D.prototype.getColor=function(r,g,b,a){
- return this.materials.getColor(r,g,b,a);
+ return MaterialShade.fromColor(r,g,b,a);
 }
 Scene3D.prototype.getMaterialParams=function(am,di,sp,sh){
- return this.materials.getMaterialParams(am,di,sp,sh);
+ return new MaterialShade(am,di,sp,sh);
 }
 Scene3D.prototype.getTexture=function(name){
- return this.materials.getTexture(name);
+ return this.textureManager.getTexture(name);
 }
 Scene3D.prototype._updateMatrix=function(){
  if(this._matrixDirty){
