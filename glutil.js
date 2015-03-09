@@ -651,12 +651,6 @@ function Mesh(vertices,faces,format){
  this.faces=faces;
  this.format=format;
 }
-// These Shape constants will be removed
-Shape.VEC2D=2;
-Shape.VEC3D=3;
-Shape.VEC3DNORMALUV=6;
-Shape.VEC3DNORMAL=5;
-Shape.VEC3DCOLOR=7;
 Mesh.VEC2D=2;
 Mesh.VEC3D=3;
 Mesh.VEC3DNORMALUV=6;
