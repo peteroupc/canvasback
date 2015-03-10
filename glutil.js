@@ -733,10 +733,9 @@ Mesh.prototype.recalcNormals=function(){
   return this;
 };
 
-(function(){
-var TextureManager=function(context){
+var TextureManager=function(){
+ // TODO: There may be no need for TextureManager anymore
  this.textures={}
- this.context=context;
 }
 TextureManager.prototype.loadTexture=function(name){
  // Get cached texture
@@ -744,6 +743,7 @@ TextureManager.prototype.loadTexture=function(name){
    var ret=new Texture(this.textures[name]);
    return Promise.resolve(ret);
  }
+ // TODO: Duplicative code
  var texImage=new TextureImage(name);
  this.textures[name]=texImage;
  // Load new texture and cache it
@@ -758,25 +758,54 @@ TextureManager.prototype.loadTexture=function(name){
 
 TextureManager.prototype.loadTextureAndMap=function(name, context){
   return this.loadTexture(name).then(function(result){
-    return result.load(context);
+    return result.mapToContext(context);
   });
 };
-var Texture=function(texture){
- if(!texture)throw new Error();
- this.texture=texture;
+
+var Texture=function(textureImage){
+ if(!textureImage)throw new Error();
+ this.textureImage=textureImage;
  this.name=texture.name;
  this.material=new MaterialShade();
+}
+
+Texture.loadTexture=function(name){
+ var texImage=new TextureImage(name);
+ // Load new texture and cache it
+ return texImage.loadImage().then(
+  function(result){
+   return new Texture(result);
+  },
+  function(name){
+    return Promise.reject(name.name);
+  });
 }
 Texture.prototype.setParams=function(material){
  this.material=material;
  return this;
 }
-Texture.prototype.load=function(context){
- this.texture.load(context);
+Texture.prototype.mapToContext=function(context){
+ this.textureImage.mapToContext(context);
  return this;
 }
+Texture.prototype.bind=function(program){
+ if(this.texture!==null){
+  this.texture.bind(program);
+ }
+ if(this.material){
+   program.setUniforms({
+  "mshin":this.material.shininess,
+  "ma":[this.material.ambient[0],
+    this.material.ambient[1], this.material.ambient[2]],
+  "md":[this.material.diffuse[0],
+    this.material.diffuse[1], this.material.diffuse[2]],
+  "ms":this.material.specular
+  });
+ }
+}
+//////////////////////////////////
 var TextureImage=function(name){
-  this.texture=null;
+  this.textureName=null;
   this.name=name;
   this.image=null;
 }
@@ -800,7 +829,7 @@ TextureImage.prototype.loadImage=function(){
   image.src=thisName;
  });
 }
-TextureImage.prototype.load=function(context){
+TextureImage.prototype.mapToContext=function(context){
   if(this.texture!==null){
    // already loaded
    return this;
@@ -812,9 +841,9 @@ TextureImage.prototype.load=function(context){
    }
    return (a==1);
   }
-  this.texture=context.createTexture();
+  this.textureName=context.createTexture();
   context.pixelStorei(context.UNPACK_FLIP_Y_WEBGL, true);
-  context.bindTexture(context.TEXTURE_2D, this.texture);
+  context.bindTexture(context.TEXTURE_2D, this.textureName);
   context.texParameteri(context.TEXTURE_2D,
     context.TEXTURE_MAG_FILTER, context.LINEAR);
   context.texImage2D(context.TEXTURE_2D, 0,
@@ -838,26 +867,10 @@ TextureImage.prototype.load=function(context){
   context.bindTexture(context.TEXTURE_2D, null);
   return this;
 }
-// Material binding
-Texture.prototype.bind=function(program){
- if(this.texture!==null){
-  this.texture.bind(program);
- }
- if(this.material){
-   program.setUniforms({
-  "mshin":this.material.shininess,
-  "ma":[this.material.ambient[0],
-    this.material.ambient[1], this.material.ambient[2]],
-  "md":[this.material.diffuse[0],
-    this.material.diffuse[1], this.material.diffuse[2]],
-  "ms":this.material.specular
-  });
- }
-}
 TextureImage.prototype.bind=function(program){
    if(this.image!==null && this.texture===null){
       // load the image as a texture
-      texture.load(program.getContext());
+      texture.mapToContext(program.getContext());
    } else if(this.image===null && this.texture===null){
       var thisObj=this;
       var prog=program;
@@ -876,8 +889,7 @@ TextureImage.prototype.bind=function(program){
         this.texture);
     }
 }
-window["TextureManager"]=TextureManager;
-})(window);
+////////////////////////////////////////
 
 function Scene3D(context){
  this.context=context;
@@ -886,7 +898,7 @@ function Scene3D(context){
  this.program=new ShaderProgram(context);
  this.shapes=[];
  this.clearColor=[0,0,0,1];
- this.textureManager=new TextureManager(context);
+ this.textureManager=new TextureManager();
  this.context.enable(context.BLEND);
  //this.context.enable(context.CULL_FACE);
  this._projectionMatrix=GLMath.mat4identity();
