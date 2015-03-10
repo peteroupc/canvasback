@@ -1,9 +1,16 @@
+/*
+Written by Peter O. in 2015.
+
+Any copyright is dedicated to the Public Domain.
+http://creativecommons.org/publicdomain/zero/1.0/
+If you like this, you should donate to Peter O.
+at: http://upokecenter.dreamhosters.com/articles/donate-now-2/
+*/
 function ObjData(){
   this.url=null;
   this.mtllib=null;
   this.mtl=null;
-  this.usemtl=null;
-  this.mesh=null;
+  this.meshes=[];
 }
 function MtlData(){
   this.url=null;
@@ -12,27 +19,51 @@ function MtlData(){
 ObjData.prototype.toShape=function(context){
  var shape=new Shape(context, this.getMesh());
  var mat=this.getMaterial();
- // TODO: load texture into shape
  shape.setMaterial(mat);
  return shape;
 }
+ObjData._resolvePath=function(path, name){
+ // Relatively dumb for a relative path
+ // resolver, but sufficient here, as it will
+ // only be used with "mtllib"/"map_Kd" strings
+ // without path information
+ var ret=path;
+ var lastSlash=ret.lastIndexOf("/")
+ if(lastSlash>=0){
+  ret=ret.substr(0,lastSlash+1)+name;
+ } else {
+  ret=obj.mtllib;
+ }
+ return ret;
+}
 ObjData.prototype.getMesh=function(){
-  return this.mesh;
+ // TODO: add functionality to get all meshes
+  return this.meshes[0].data;
 }
 ObjData.prototype.getMaterial=function(){
- if(!this.mtl){
+ if(!this.mtl || this.meshes.length==0){
   return new MaterialShade();
  } else {
-  if(this.usemtl){
-   var mtl=this.mtl.getMaterial(this.usemtl);
+  var firstMesh=this.meshes[0];
+  if(firstMesh.usemtl){
+   var mtl=this.mtl.getMaterial(firstMesh.usemtl);
    if(!mtl)return new MaterialShade();
    return mtl;
-  } else if(this.mtl.list.length>0) {
-    return this.mtl.list[0].data;
   } else {
    return new MaterialShade();
   }
  }
+}
+MtlData.prototype._resolveTextures=function(){
+  for(var i=0;i<this.list.length;i++){
+    var mtl=this.list[i].data;
+    if(mtl.textureName){
+     var resolvedName=ObjData._resolvePath(
+       this.url,mtl.textureName);
+     this.list[i].data=new Texture(resolvedName)
+       .setParams(mtl);
+    }
+  }
 }
 MtlData.prototype.getMaterial=function(name){
   for(var i=0;i<this.list.length;i++){
@@ -45,9 +76,12 @@ MtlData.prototype.getMaterial=function(name){
 MtlData._getMaterial=function(mtl){
  function xyzToRgb(xyz){
   // convert CIE XYZ to RGB
-  var rgb=[2.2878384873407613*r-0.8333676778352163*g-0.4544707958714208*b,
-    -0.5116513807438615*r+1.4227583763217775*g+0.08889300175529392*b,
-    0.005720409831409596*r-0.01590684851040362*g+1.0101864083734013*b]
+  var x=xyz[0];
+  var y=xyz[1];
+  var z=xyz[2];
+  var rgb=[2.2878384873407613*x-0.8333676778352163*y-0.4544707958714208*z,
+    -0.5116513807438615*x+1.4227583763217775*y+0.08889300175529392*z,
+    0.005720409831409596*x-0.01590684851040362*y+1.0101864083734013*z]
   // ensure RGB value fits in 0..1
   var w=-Math.min(0,rgb[0],rgb[1],rgb[2]);
   if(w>0){
@@ -92,6 +126,7 @@ ObjData.loadMtlFromUrl=function(url){
      if(mtl.error)return Promise.reject({url:e.url, error: mtl.error});
      var mtldata=mtl.success;
      mtldata.url=e.url;
+     mtldata._resolveTextures();
      return Promise.resolve(mtldata);
    },
    function(e){
@@ -107,13 +142,7 @@ ObjData.loadObjFromUrl=function(url){
      obj.url=e.url;
      if(obj.mtllib){
        // load the material file if available
-       var mtlURL=e.url;
-       var lastSlash=mtlURL.lastIndexOf("/")
-       if(lastSlash>=0){
-        mtlURL=mtlURL.substr(0,lastSlash+1)+obj.mtllib;
-       } else {
-        mtlURL=obj.mtllib;
-       }
+       var mtlURL=ObjData._resolvePath(e.url,obj.mtllib);
        return ObjData.loadMtlFromUrl(mtlURL).then(
         function(result){
           obj.mtl=result;
@@ -139,7 +168,7 @@ MtlData._loadMtl=function(str){
  var oneIntLine=new RegExp("^(illum)\\s+"+nonnegInteger+"\\s*$")
  var threeNumLine=new RegExp("^(Kd|Ka|Ks|Ke|Tf)\\s+"+number+"\\s+"+number
    +"\\s+"+number+"\\s*$")
- var mapLine=new RegExp("^(map_Kd)\\s+([^\\:\\s]+)$")
+ var mapLine=new RegExp("^(map_Kd|map_bump|map_Ka|map_Ks)\\s+([^\\:\\s\\/\\\\]+)$")
  var newmtlLine=new RegExp("^newmtl\\s+([^\\s]+)$")
  var faceStart=new RegExp("^f\\s+")
  var lines=str.split(/\r?\n/)
@@ -232,9 +261,10 @@ ObjData._loadObj=function(str){
  var vertexUVNormal=new RegExp("^"+nonnegInteger+"\\/"+nonnegInteger+
    "\\/"+nonnegInteger+"($|\\s+)")
  var vertexLine=new RegExp("^v\\s+"+number+"\\s+"+number+"\\s+"+number+"\\s*$")
- var uvLine=new RegExp("^vt\\s+"+number+"\\s+"+number+"\\s*$")
+ var uvLine=new RegExp("^vt\\s+"+number+"\\s+"+number+"(\\s+"+number+")?\\s*$")
+ var smoothLine=new RegExp("^(s)\\s+(.*)$")
  var usemtlLine=new RegExp("^(usemtl|o|g|s)\\s+([^\\s]+)\\s*$")
- var mtllibLine=new RegExp("^(mtllib)\\s+([^\\:\\/\\s]+)\\s*$")
+ var mtllibLine=new RegExp("^(mtllib)\\s+([^\\:\\/\\s\\\\]+)\\s*$")
  var normalLine=new RegExp("^vn\\s+"+number+"\\s+"+number+"\\s+"+number+"\\s*")
  var faceStart=new RegExp("^f\\s+")
  var lines=str.split(/\r?\n/)
@@ -243,10 +273,14 @@ ObjData._loadObj=function(str){
  var normals=[];
  var uvs=[];
  var faces=[];
+ var meshName=name;
+ var usemtl=null;
  var currentFaces=[];
  var ret=new ObjData();
+ var haveNormals=false;
  var lookBack=0;
  var vertexKind=-1;
+ var mesh=null;
  for(var i=0;i<lines.length;i++){
   var line=lines[i];
   // skip empty lines
@@ -306,6 +340,7 @@ ObjData._loadObj=function(str){
       }
       var vtx=parseInt(e[1],10)-1;
       var norm=parseInt(e[2],10)-1;
+      haveNormals=true;
       pushVertex(resolvedVertices, faces, lookBack,
         vertices[vtx][0],vertices[vtx][1],vertices[vtx][2],
         normals[norm][0],normals[norm][1],normals[norm][2],0,0);
@@ -324,7 +359,7 @@ ObjData._loadObj=function(str){
       var uv=parseInt(e[2],10)-1;
       pushVertex(resolvedVertices, faces, lookBack,
         vertices[vtx][0],vertices[vtx][1],vertices[vtx][2],
-        0,0,0,uvs[uv][0],uvs[uv][1],0,0);
+        0,0,0,uvs[uv][0],uvs[uv][1]);
       currentFaces[faceCount]=faces[faces.length-1];
       line=line.substr(e[0].length);
      faceCount++;
@@ -339,6 +374,7 @@ ObjData._loadObj=function(str){
       var vtx=parseInt(e[1],10)-1;
       var uv=parseInt(e[2],10)-1;
       var norm=parseInt(e[3],10)-1;
+      haveNormals=true;
       pushVertex(resolvedVertices, faces, lookBack,
         vertices[vtx][0],vertices[vtx][1],vertices[vtx][2],
         normals[norm][0],normals[norm][1],normals[norm][2],
@@ -361,7 +397,24 @@ ObjData._loadObj=function(str){
   e=usemtlLine.exec(line)
   if(e){
     if(e[1]=="usemtl"){
-      ret["usemtl"]=e[2];
+      usemtl=e[2];
+    } else if(e[1]=="g"){
+      // Starts a new group
+      if(resolvedVertices.length>0){
+        mesh=new Mesh(resolvedVertices,faces,Mesh.VEC3DNORMALUV);
+        if(!haveNormals){
+         // No normals in this mesh, so calculate them
+         mesh.recalcNormals();
+        }
+        ret.meshes.push({name: meshName, usemtl: usemtl, data: mesh});
+        lookBack=0;
+        vertexKind=0;
+        resolvedVertices=[];
+        resolvedFaces=[];
+        usemtl=null;
+        haveNormals=false;
+      }
+      meshName=e[2];
     }
     continue;
   }
@@ -372,11 +425,17 @@ ObjData._loadObj=function(str){
     }
     continue;
   }
+  e=smoothLine.exec(line)
+  if(e){
+    continue;
+  }
   return {error: new Error("unsupported line: "+line)}
  }
- ret.mesh=new Mesh(resolvedVertices,faces,Mesh.VEC3DNORMALUV);
- if(normals.length==0){
-  ret.mesh.recalcNormals();
+ mesh=new Mesh(resolvedVertices,faces,Mesh.VEC3DNORMALUV);
+ if(!haveNormals){
+   // No normals in this mesh, so calculate them
+   mesh.recalcNormals();
  }
+ ret.meshes.push({name: meshName, usemtl: usemtl, data: mesh});
  return {success: ret};
 }

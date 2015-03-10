@@ -733,53 +733,45 @@ Mesh.prototype.recalcNormals=function(){
   return this;
 };
 
-var TextureManager=function(){
- // TODO: There may be no need for TextureManager anymore
- this.textures={}
+var Texture=function(name){
+ this.textureImage=null;
+ this.name=name;
+ this.material=new MaterialShade();
 }
-TextureManager.prototype.loadTexture=function(name){
+Texture._fromTextureImage=function(textureImage){
+ var tex=new Texture(textureImage.name);
+ tex.textureImage=textureImage;
+ tex.name=textureImage.name;
+ tex.material=new MaterialShade();
+ return tex;
+}
+
+Texture.loadTexture=function(name, textureCache){
  // Get cached texture
- if(this.textures[name] && this.textures.hasOwnProperty(name)){
-   var ret=new Texture(this.textures[name]);
+ if(textureCache &&
+    textureCache[name] && textureCache.hasOwnProperty(name)){
+   var ret=Texture._fromTextureImage(textureCache[name]);
    return Promise.resolve(ret);
  }
- // TODO: Duplicative code
  var texImage=new TextureImage(name);
- this.textures[name]=texImage;
+ if(textureCache){
+  textureCache[name]=texImage;
+ }
  // Load new texture and cache it
  return texImage.loadImage().then(
   function(result){
-   return new Texture(result);
+   return Texture._fromTextureImage(result);
   },
   function(name){
     return Promise.reject(name.name);
   });
-};
+}
 
-TextureManager.prototype.loadTextureAndMap=function(name, context){
-  return this.loadTexture(name).then(function(result){
+Texture.loadAndMapTexture=function(name, context, textureCache){
+  return Texture.loadTexture(name, textureCache).then(function(result){
     return result.mapToContext(context);
   });
 };
-
-var Texture=function(textureImage){
- if(!textureImage)throw new Error();
- this.textureImage=textureImage;
- this.name=texture.name;
- this.material=new MaterialShade();
-}
-
-Texture.loadTexture=function(name){
- var texImage=new TextureImage(name);
- // Load new texture and cache it
- return texImage.loadImage().then(
-  function(result){
-   return new Texture(result);
-  },
-  function(name){
-    return Promise.reject(name.name);
-  });
-}
 Texture.prototype.setParams=function(material){
  this.material=material;
  return this;
@@ -789,8 +781,11 @@ Texture.prototype.mapToContext=function(context){
  return this;
 }
 Texture.prototype.bind=function(program){
- if(this.texture!==null){
-  this.texture.bind(program);
+ if(this.textureImage!==null){
+  this.textureImage.bind(program);
+ } else if(this.name!==null){
+  this.textureImage=new TextureImage(this.name);
+  this.textureImage.loadImage();
  }
  if(this.material){
    program.setUniforms({
@@ -830,7 +825,7 @@ TextureImage.prototype.loadImage=function(){
  });
 }
 TextureImage.prototype.mapToContext=function(context){
-  if(this.texture!==null){
+  if(this.textureName!==null){
    // already loaded
    return this;
   }
@@ -864,29 +859,29 @@ TextureImage.prototype.mapToContext=function(context){
    context.texParameteri(context.TEXTURE_2D,
      context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
   }
-  context.bindTexture(context.TEXTURE_2D, null);
   return this;
 }
 TextureImage.prototype.bind=function(program){
-   if(this.image!==null && this.texture===null){
+   if(this.image!==null && this.textureName===null){
       // load the image as a texture
-      texture.mapToContext(program.getContext());
-   } else if(this.image===null && this.texture===null){
+      this.mapToContext(program.getContext());
+   } else if(this.image===null && this.textureName===null){
       var thisObj=this;
       var prog=program;
       this.loadImage().then(function(e){
         // try again loading the image
-        this.bind(program);
+        thisObj.bind(program);
       });
       return;
    }
-   if (this.texture!==null) {
+   if (this.textureName!==null) {
       var uniforms={};
       uniforms["useTexture"]=1;
       program.setUniforms(uniforms);
-      program.getContext().activeTexture(program.getContext().TEXTURE0);
-      program.getContext().bindTexture(program.getContext().TEXTURE_2D,
-        this.texture);
+      var ctx=program.getContext()
+      ctx.activeTexture(ctx.TEXTURE0);
+      ctx.bindTexture(ctx.TEXTURE_2D,
+        this.textureName);
     }
 }
 ////////////////////////////////////////
@@ -898,9 +893,8 @@ function Scene3D(context){
  this.program=new ShaderProgram(context);
  this.shapes=[];
  this.clearColor=[0,0,0,1];
- this.textureManager=new TextureManager();
+ this.textureCache={};
  this.context.enable(context.BLEND);
- //this.context.enable(context.CULL_FACE);
  this._projectionMatrix=GLMath.mat4identity();
  this._viewMatrix=GLMath.mat4identity();
  this._matrixDirty=true;
@@ -974,17 +968,18 @@ Scene3D.prototype.getMaterialParams=function(am,di,sp,sh){
 }
 Scene3D.prototype.loadTexture=function(name){
  // Returns a promise with a Texture object result if it resolves
- return this.textureManager.loadTexture(name);
+ return Texture.loadTexture(name, this.textureCache);
 }
-Scene3D.prototype.loadTextureAndMap=function(name){
+Scene3D.prototype.loadAndMapTexture=function(name){
  // Returns a promise with a Texture object result if it resolves
- return this.textureManager.loadTextureAndMap(name, this.context);
+ return Texture.loadAndMapTexture(
+   name, this.context, this.textureCache);
 }
-Scene3D.prototype.loadTexturesAndMap=function(textureFiles, resolve, reject){
+Scene3D.prototype.loadAndMapTextures=function(textureFiles, resolve, reject){
  var promises=[];
  for(var i=0;i<textureFiles.length;i++){
   var objf=textureFiles[i];
-  var p=this.loadTextureAndMap(objf);
+  var p=this.loadAndMapTexture(objf);
   promises.push(p);
  }
  return GLUtil.getPromiseResults(promises, resolve, reject);
