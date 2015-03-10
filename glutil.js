@@ -932,7 +932,7 @@ MaterialShade.fromMtl=function(context, mtl){
  return ret;
 }
 MaterialShade.fromColor=function(r,g,b,a){
- var color=GLUtil.toGLColor(r,g,b,a);
+ var color=GLUtil["toGLColor"](r,g,b,a);
  return new MaterialShade(color,color);
 }
 MaterialShade.prototype.bind=function(program){
@@ -1151,8 +1151,10 @@ Texture.prototype.bind=function(program){
  if(this.material){
    program.setUniforms({
   "mshin":this.material.shininess,
-  "ma":this.material.ambient,
-  "md":this.material.diffuse,
+  "ma":[this.material.ambient[0],
+    this.material.ambient[1], this.material.ambient[2]],
+  "md":[this.material.diffuse[0],
+    this.material.diffuse[1], this.material.diffuse[2]],
   "ms":this.material.specular
   });
  }
@@ -1254,7 +1256,7 @@ Scene3D.prototype._setClearColor=function(){
   return this;
 }
 Scene3D.prototype.setClearColor=function(r,g,b,a){
- this.clearColor=GLUtil.toGLColor(r,g,b,a);
+ this.clearColor=GLUtil["toGLColor"](r,g,b,a);
  return this._setClearColor();
 }
 Scene3D.prototype.getColor=function(r,g,b,a){
@@ -1354,7 +1356,7 @@ Shape.prototype.getDrawLines=function(){
  return this.drawLines;
 }
 Shape.prototype.setColor=function(r,g,b,a){
- var color=GLUtil.toGLColor(r,g,b,a);
+ var color=GLUtil["toGLColor"](r,g,b,a);
  this.material=MaterialShade.fromColor(color);
  return this;
 }

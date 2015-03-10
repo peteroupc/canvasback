@@ -192,7 +192,7 @@ CanvasBackground.prototype.start=function(){
  GLUtil.renderLoop(this.animate.bind(this));
 }
 CanvasBackground.prototype["setColor"]=function(color){
- var rgb=GLUtil.colorToRgba(color);
+ var rgb=GLUtil["colorToRgba"](color);
  if(!rgb)throw new Error("invalid color parameter");
  this.color=[rgb[0],rgb[1],rgb[2]];
  this.hls=this.constructor.rgb2hls(rgb);
