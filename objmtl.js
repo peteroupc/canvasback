@@ -168,7 +168,7 @@ MtlData._loadMtl=function(str){
  var oneIntLine=new RegExp("^(illum)\\s+"+nonnegInteger+"\\s*$")
  var threeNumLine=new RegExp("^(Kd|Ka|Ks|Ke|Tf)\\s+"+number+"\\s+"+number
    +"\\s+"+number+"\\s*$")
- var mapLine=new RegExp("^(map_Kd|map_bump|map_Ka|map_Ks)\\s+(?!\\/)([^\\:\\s\\\\]+)$")
+ var mapLine=new RegExp("^(map_Kd|map_bump|map_Ka|map_Ks)\\s+(?!\\/)([^\\:\\?\\#\\s\\\\]+)$")
  var newmtlLine=new RegExp("^newmtl\\s+([^\\s]+)$")
  var faceStart=new RegExp("^f\\s+")
  var lines=str.split(/\r?\n/)
@@ -314,7 +314,7 @@ ObjData._loadObj=function(str){
  var uvLine=new RegExp("^vt\\s+"+number+"\\s+"+number+"(\\s+"+number+")?\\s*$")
  var smoothLine=new RegExp("^(s)\\s+(.*)$")
  var usemtlLine=new RegExp("^(usemtl|o|g)\\s+([^\\s]+)\\s*$")
- var mtllibLine=new RegExp("^(mtllib)\\s+(?!\\/)([^\\:\\s\\\\]+)\\s*$")
+ var mtllibLine=new RegExp("^(mtllib)\\s+(?!\\/)([^\\:\\?\\#\\s\\\\]+)\\s*$")
  var normalLine=new RegExp("^vn\\s+"+number+"\\s+"+number+"\\s+"+number+"\\s*")
  var faceStart=new RegExp("^f\\s+")
  var lines=str.split(/\r?\n/)
@@ -373,6 +373,7 @@ ObjData._loadObj=function(str){
     seenFacesAfterObjName=true;
     line=line.substr(e[0].length);
     var faceCount=0;
+    var firstFace=faces.length;
     currentFaces=[];
     while(line.length>0){
      e=vertexOnly.exec(line)
@@ -444,13 +445,15 @@ ObjData._loadObj=function(str){
      return {error: new Error("unsupported face: "+oldline)}
     }
     if(faceCount>=4){
-      // Add an additional triangle in the polygon
-      console.log(faceCount)
-      faces[faces.length-1]=currentFaces[0];
-      faces.push(currentFaces[faceCount-2]);
-      faces.push(currentFaces[faceCount-1]);
-    }
-    if(faceCount<3){
+      // Add an additional triangle for each vertex after
+      // the third
+      var m=firstFace+3;
+      for(var k=3;k<faceCount;k++,m+=3){
+       faces[m]=currentFaces[0];
+       faces[m+1]=currentFaces[k-1];
+       faces[m+2]=currentFaces[k];
+      }
+    } else if(faceCount<3){
      return {error: "face has fewer than 3 vertices"}
     }
     if(flat){
@@ -476,7 +479,7 @@ ObjData._loadObj=function(str){
          mesh.recalcNormals();
         }
         ret.meshes.push({
-          name: seenFacesAfterObjName ? objName : oldObjName, 
+          name: seenFacesAfterObjName ? objName : oldObjName,
           usemtl: usemtl, data: mesh});
         lookBack=0;
         vertexKind=0;
@@ -494,7 +497,7 @@ ObjData._loadObj=function(str){
          mesh.recalcNormals();
         }
         ret.meshes.push({
-          name: seenFacesAfterObjName ? objName : oldObjName, 
+          name: seenFacesAfterObjName ? objName : oldObjName,
           usemtl: usemtl, data: mesh});
         lookBack=0;
         vertexKind=0;
@@ -531,7 +534,7 @@ ObjData._loadObj=function(str){
    mesh.recalcNormals();
  }
  ret.meshes.push({
-          name: seenFacesAfterObjName ? objName : oldObjName, 
+          name: seenFacesAfterObjName ? objName : oldObjName,
           usemtl: usemtl, data: mesh});
  return {success: ret};
 }
