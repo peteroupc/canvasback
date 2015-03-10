@@ -168,7 +168,7 @@ MtlData._loadMtl=function(str){
  var oneIntLine=new RegExp("^(illum)\\s+"+nonnegInteger+"\\s*$")
  var threeNumLine=new RegExp("^(Kd|Ka|Ks|Ke|Tf)\\s+"+number+"\\s+"+number
    +"\\s+"+number+"\\s*$")
- var mapLine=new RegExp("^(map_Kd|map_bump|map_Ka|map_Ks)\\s+(?!\/\/)([^\\:\\s\\\\]+)$")
+ var mapLine=new RegExp("^(map_Kd|map_bump|map_Ka|map_Ks)\\s+(?!\\/)([^\\:\\s\\\\]+)$")
  var newmtlLine=new RegExp("^newmtl\\s+([^\\s]+)$")
  var faceStart=new RegExp("^f\\s+")
  var lines=str.split(/\r?\n/)
@@ -242,10 +242,10 @@ ObjData._recalcNormalsSingleFace=function(vertices,indices,stride){
   }
   for(var i=0;i<indices.length;i++){
     var v1=indices[i]*stride
-    var v2=(i==indices.length-1) ? indices[0]*stride : indices[i+1]*stride
-    var v3=(i==0) ? indices[indices.length-1] : indices[i+2]*stride
-    var n1=[vertices[v2]-vertices[v3],vertices[v2+1]-vertices[v3+1],vertices[v2+2]-vertices[v3+2]]
-    var n2=[vertices[v1]-vertices[v3],vertices[v1+1]-vertices[v3+1],vertices[v1+2]-vertices[v3+2]]
+    var vPrev=(i==0) ? indices[indices.length-1] : indices[i-1]*stride
+    var vNext=(i==indices.length-1) ? indices[0]*stride : indices[i+1]*stride
+    var n1=[vertices[vPrev]-vertices[vNext],vertices[vPrev+1]-vertices[vNext+1],vertices[vPrev+2]-vertices[vNext+2]]
+    var n2=[vertices[v1]-vertices[vNext],vertices[v1+1]-vertices[vNext+1],vertices[v1+2]-vertices[vNext+2]]
     // cross multiply n1 and n2
     var x=n1[1]*n2[2]-n1[2]*n2[1]
     var y=n1[2]*n2[0]-n1[0]*n2[2]
@@ -314,7 +314,7 @@ ObjData._loadObj=function(str){
  var uvLine=new RegExp("^vt\\s+"+number+"\\s+"+number+"(\\s+"+number+")?\\s*$")
  var smoothLine=new RegExp("^(s)\\s+(.*)$")
  var usemtlLine=new RegExp("^(usemtl|o|g)\\s+([^\\s]+)\\s*$")
- var mtllibLine=new RegExp("^(mtllib)\\s+([^\\:\\/\\s\\\\]+)\\s*$")
+ var mtllibLine=new RegExp("^(mtllib)\\s+(?!\\/)([^\\:\\s\\\\]+)\\s*$")
  var normalLine=new RegExp("^vn\\s+"+number+"\\s+"+number+"\\s+"+number+"\\s*")
  var faceStart=new RegExp("^f\\s+")
  var lines=str.split(/\r?\n/)
@@ -373,6 +373,7 @@ ObjData._loadObj=function(str){
     seenFacesAfterObjName=true;
     line=line.substr(e[0].length);
     var faceCount=0;
+    currentFaces=[];
     while(line.length>0){
      e=vertexOnly.exec(line)
      if(e){
@@ -444,6 +445,7 @@ ObjData._loadObj=function(str){
     }
     if(faceCount>=4){
       // Add an additional triangle in the polygon
+      console.log(faceCount)
       faces[faces.length-1]=currentFaces[0];
       faces.push(currentFaces[faceCount-2]);
       faces.push(currentFaces[faceCount-1]);
@@ -458,6 +460,7 @@ ObjData._loadObj=function(str){
         currentFaces, 8);
       // Don't reuse previous vertices
       lookBack=faces.length;
+      haveNormals=true;
     }
     continue;
   }
@@ -473,7 +476,7 @@ ObjData._loadObj=function(str){
          mesh.recalcNormals();
         }
         ret.meshes.push({
-          name: seenFacesAfterObjName ? objName : oldObjName,
+          name: seenFacesAfterObjName ? objName : oldObjName, 
           usemtl: usemtl, data: mesh});
         lookBack=0;
         vertexKind=0;
@@ -491,7 +494,7 @@ ObjData._loadObj=function(str){
          mesh.recalcNormals();
         }
         ret.meshes.push({
-          name: seenFacesAfterObjName ? objName : oldObjName,
+          name: seenFacesAfterObjName ? objName : oldObjName, 
           usemtl: usemtl, data: mesh});
         lookBack=0;
         vertexKind=0;
@@ -528,7 +531,7 @@ ObjData._loadObj=function(str){
    mesh.recalcNormals();
  }
  ret.meshes.push({
-          name: seenFacesAfterObjName ? objName : oldObjName,
+          name: seenFacesAfterObjName ? objName : oldObjName, 
           usemtl: usemtl, data: mesh});
  return {success: ret};
 }
