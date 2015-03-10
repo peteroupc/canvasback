@@ -17,10 +17,14 @@ function MtlData(){
   this.list=[];
 }
 ObjData.prototype.toShape=function(context){
- var shape=new Shape(context, this.getMesh());
- var mat=this.getMaterial();
- shape.setMaterial(mat);
- return shape;
+ var multi=new MultiShape();
+ for(var i=0;i<this.meshes.length;i++){
+  var shape=new Shape(context, this.meshes[i].data);
+  var mat=this._getMaterial(this.meshes[i]);
+  shape.setMaterial(mat);
+  multi.add(shape);
+ }
+ return multi;
 }
 ObjData._resolvePath=function(path, name){
  // Relatively dumb for a relative path
@@ -32,21 +36,16 @@ ObjData._resolvePath=function(path, name){
  if(lastSlash>=0){
   ret=ret.substr(0,lastSlash+1)+name;
  } else {
-  ret=obj.mtllib;
+  ret=name;
  }
  return ret;
 }
-ObjData.prototype.getMesh=function(){
- // TODO: add functionality to get all meshes
-  return this.meshes[0].data;
-}
-ObjData.prototype.getMaterial=function(){
- if(!this.mtl || this.meshes.length==0){
+ObjData.prototype._getMaterial=function(mesh){
+ if(!this.mtl || !mesh){
   return new MaterialShade();
  } else {
-  var firstMesh=this.meshes[0];
-  if(firstMesh.usemtl){
-   var mtl=this.mtl.getMaterial(firstMesh.usemtl);
+  if(mesh.usemtl){
+   var mtl=this.mtl.getMaterial(mesh.usemtl);
    if(!mtl)return new MaterialShade();
    return mtl;
   } else {
@@ -130,7 +129,7 @@ ObjData.loadMtlFromUrl=function(url){
      return Promise.resolve(mtldata);
    },
    function(e){
-     return Promise.reject({url: e.url})
+     return Promise.reject(e)
    });
 }
 ObjData.loadObjFromUrl=function(url){
@@ -149,6 +148,7 @@ ObjData.loadObjFromUrl=function(url){
           return Promise.resolve(obj);
         }, function(result){
           obj.mtl=null;
+          //console.log(result)
           return Promise.resolve(obj);
         });
      } else {
@@ -158,7 +158,7 @@ ObjData.loadObjFromUrl=function(url){
      return {url: e.url, obj: GLUtil._loadObj(e.text)};
    },
    function(e){
-     return Promise.reject({url: e.url})
+     return Promise.reject(e)
    });
 }
 MtlData._loadMtl=function(str){
@@ -168,7 +168,7 @@ MtlData._loadMtl=function(str){
  var oneIntLine=new RegExp("^(illum)\\s+"+nonnegInteger+"\\s*$")
  var threeNumLine=new RegExp("^(Kd|Ka|Ks|Ke|Tf)\\s+"+number+"\\s+"+number
    +"\\s+"+number+"\\s*$")
- var mapLine=new RegExp("^(map_Kd|map_bump|map_Ka|map_Ks)\\s+([^\\:\\s\\/\\\\]+)$")
+ var mapLine=new RegExp("^(map_Kd|map_bump|map_Ka|map_Ks)\\s+(?!\/\/)([^\\:\\s\\\\]+)$")
  var newmtlLine=new RegExp("^newmtl\\s+([^\\s]+)$")
  var faceStart=new RegExp("^f\\s+")
  var lines=str.split(/\r?\n/)
@@ -231,6 +231,56 @@ MtlData._loadMtl=function(str){
  }
  return {success: mtl};
 }
+ObjData._recalcNormalsSingleFace=function(vertices,indices,stride){
+  if(indices.length<3)return;
+  // Reset to zero all normals involved
+  for(var i=0;i<indices.length;i++){
+    var v4=indices[i]*stride;
+    vertices[v4+3]=0.0
+    vertices[v4+4]=0.0
+    vertices[v4+5]=0.0
+  }
+  for(var i=0;i<indices.length;i++){
+    var v1=indices[i]*stride
+    var v2=(i==indices.length-1) ? indices[0]*stride : indices[i+1]*stride
+    var v3=(i==0) ? indices[indices.length-1] : indices[i+2]*stride
+    var n1=[vertices[v2]-vertices[v3],vertices[v2+1]-vertices[v3+1],vertices[v2+2]-vertices[v3+2]]
+    var n2=[vertices[v1]-vertices[v3],vertices[v1+1]-vertices[v3+1],vertices[v1+2]-vertices[v3+2]]
+    // cross multiply n1 and n2
+    var x=n1[1]*n2[2]-n1[2]*n2[1]
+    var y=n1[2]*n2[0]-n1[0]*n2[2]
+    var z=n1[0]*n2[1]-n1[1]*n2[0]
+    // normalize xyz vector
+    len=Math.sqrt(x*x+y*y+z*z);
+    if(len!=0){
+      len=1.0/len;
+      x*=len;
+      y*=len;
+      z*=len;
+      // add normalized normal to each vertex of the face
+      for(var j=0;j<indices.length;j++){
+        var v4=indices[j]*stride;
+        vertices[v4+3]+=x;
+        vertices[v4+4]+=x;
+        vertices[v4+5]+=x;
+      }
+    }
+  }
+  // Normalize each normal of each vertex involved
+  for(var i=0;i<indices.length;i++){
+    var v4=indices[i]*stride;
+    var x=vertices[v4+3];
+    var y=vertices[v4+4];
+    var z=vertices[v4+5];
+    len=Math.sqrt(x*x+y*y+z*z);
+    if(len){
+      len=1.0/len;
+      vertices[v4+3]=x*len;
+      vertices[v4+4]=y*len;
+      vertices[v4+5]=z*len;
+    }
+  }
+}
 ObjData._loadObj=function(str){
  function pushVertex(verts,faces,look,
    v1,v2,v3,n1,n2,n3,u1,u2){
@@ -263,7 +313,7 @@ ObjData._loadObj=function(str){
  var vertexLine=new RegExp("^v\\s+"+number+"\\s+"+number+"\\s+"+number+"\\s*$")
  var uvLine=new RegExp("^vt\\s+"+number+"\\s+"+number+"(\\s+"+number+")?\\s*$")
  var smoothLine=new RegExp("^(s)\\s+(.*)$")
- var usemtlLine=new RegExp("^(usemtl|o|g|s)\\s+([^\\s]+)\\s*$")
+ var usemtlLine=new RegExp("^(usemtl|o|g)\\s+([^\\s]+)\\s*$")
  var mtllibLine=new RegExp("^(mtllib)\\s+([^\\:\\/\\s\\\\]+)\\s*$")
  var normalLine=new RegExp("^vn\\s+"+number+"\\s+"+number+"\\s+"+number+"\\s*")
  var faceStart=new RegExp("^f\\s+")
@@ -281,6 +331,11 @@ ObjData._loadObj=function(str){
  var lookBack=0;
  var vertexKind=-1;
  var mesh=null;
+ var objName="";
+ var oldObjName="";
+ var seenFacesAfterObjName=false;
+ var flat=false;
+ var haveCalcedNormals=false;
  for(var i=0;i<lines.length;i++){
   var line=lines[i];
   // skip empty lines
@@ -315,6 +370,7 @@ ObjData._loadObj=function(str){
   e=faceStart.exec(line)
   if(e){
     var oldline=line;
+    seenFacesAfterObjName=true;
     line=line.substr(e[0].length);
     var faceCount=0;
     while(line.length>0){
@@ -392,11 +448,39 @@ ObjData._loadObj=function(str){
       faces.push(currentFaces[faceCount-2]);
       faces.push(currentFaces[faceCount-1]);
     }
+    if(faceCount<3){
+     return {error: "face has fewer than 3 vertices"}
+    }
+    if(flat){
+      // Give all vertices in the face normals for a flat
+      // appearance
+      ObjData._recalcNormalsSingleFace(resolvedVertices,
+        currentFaces, 8);
+      // Don't reuse previous vertices
+      lookBack=faces.length;
+    }
     continue;
   }
   e=usemtlLine.exec(line)
   if(e){
     if(e[1]=="usemtl"){
+      console.log(usemtl)
+      // Changes the material used
+      if(resolvedVertices.length>0){
+        mesh=new Mesh(resolvedVertices,faces,Mesh.VEC3DNORMALUV);
+        if(!haveNormals){
+         // No normals in this mesh, so calculate them
+         mesh.recalcNormals();
+        }
+        ret.meshes.push({
+          name: seenFacesAfterObjName ? objName : oldObjName,
+          usemtl: usemtl, data: mesh});
+        lookBack=0;
+        vertexKind=0;
+        resolvedVertices=[];
+        faces=[];
+        haveNormals=false;
+      }
       usemtl=e[2];
     } else if(e[1]=="g"){
       // Starts a new group
@@ -406,15 +490,21 @@ ObjData._loadObj=function(str){
          // No normals in this mesh, so calculate them
          mesh.recalcNormals();
         }
-        ret.meshes.push({name: meshName, usemtl: usemtl, data: mesh});
+        ret.meshes.push({
+          name: seenFacesAfterObjName ? objName : oldObjName,
+          usemtl: usemtl, data: mesh});
         lookBack=0;
         vertexKind=0;
         resolvedVertices=[];
-        resolvedFaces=[];
+        faces=[];
         usemtl=null;
         haveNormals=false;
       }
       meshName=e[2];
+    } else if(e[1]=="o"){
+      oldObjName=objName;
+      objName=e[2];
+      seenFacesAfterObjName=false;
     }
     continue;
   }
@@ -427,6 +517,7 @@ ObjData._loadObj=function(str){
   }
   e=smoothLine.exec(line)
   if(e){
+    flat=(e[2]=="off");
     continue;
   }
   return {error: new Error("unsupported line: "+line)}
@@ -436,6 +527,8 @@ ObjData._loadObj=function(str){
    // No normals in this mesh, so calculate them
    mesh.recalcNormals();
  }
- ret.meshes.push({name: meshName, usemtl: usemtl, data: mesh});
+ ret.meshes.push({
+          name: seenFacesAfterObjName ? objName : oldObjName,
+          usemtl: usemtl, data: mesh});
  return {success: ret};
 }
