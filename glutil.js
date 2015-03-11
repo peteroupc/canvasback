@@ -512,59 +512,37 @@ var shader="" +
 "uniform mat4 projection;\n"+
 "varying vec2 textureUVVar;\n"+
 "varying vec3 colorAttrVar;\n" +
-"#ifdef SHADING\n" +
-"uniform mat4 viewInverse; /* internal */\n" +
+"#ifdef SHADING\n"+
 "uniform mat3 worldInverseTrans3; /* internal */\n" +
- "uniform float alpha;\n"+
- "uniform vec4 lightPosition;\n" + // source light direction
- "uniform vec3 sa;\n" + // source light ambient color
- "uniform vec3 ma;\n" + // material ambient color (-1 to 1 each component).
- "uniform vec3 sd;\n" + // source light diffuse color
- "uniform vec3 md;\n" + // material diffuse color (0-1 each component). Is multiplied by texture/solid color.
- "uniform vec3 ss;\n" + // source light specular color
- "uniform vec3 ms;\n" + // material specular color (0-1 each comp.).  Affects how intense highlights are.
- "uniform float mshin;\n" + // material shininess
- "varying vec3 ambientAndSpecularVar;\n" +
- "varying vec3 diffuseVar;\n" +
-"#endif\n" +
+"varying vec4 worldPositionVar;\n" +
+"varying vec3 transformedNormalVar;\n"+
+"#endif\n"+
 "void main(){\n" +
 "vec4 positionVec4=vec4(position,1.0);\n" +
-"#ifdef SHADING\n" +
-"vec4 worldPosition=world*positionVec4;\n" +
-"vec3 sdir;\n"+
-"float attenuation;\n"+
-"if(lightPosition.w == 0.0){\n" +
-" sdir=normalize(vec3(lightPosition));\n" +
-" attenuation=1.0;\n" +
-"} else {\n"+
-" vec3 vertexToLight=vec3(lightPosition-worldPosition);\n"+
-" float dist=length(vertexToLight);\n"+
-" sdir=normalize(vertexToLight);\n" +
-" attenuation=1.0/(1.0*dist);\n" +
-"}\n"+
-"vec3 transformedNormal=normalize(worldInverseTrans3*normal);\n" +
-"float diffInt=dot(transformedNormal,sdir);" +
-"vec3 viewPosition=normalize(vec3(viewInverse*vec4(0,0,0,1)-worldPosition));\n" +
-"vec3 ambientAndSpecular=sa*ma;\n" +
-"if(diffInt>=0.0){\n" +
-"   // specular reflection\n" +
-"   ambientAndSpecular+=(ss*ms*pow(max(dot(reflect(-sdir,transformedNormal)," +
-"      viewPosition),0.0),mshin));\n" +
-"}\n"+
-"diffuseVar=sd*md*max(0.0,dot(transformedNormal,sdir))*attenuation;\n" +
-"ambientAndSpecularVar=ambientAndSpecular;\n" +
-"#endif\n" +
+"gl_Position=projection*view*world*positionVec4;\n" +
 "colorAttrVar=colorAttr;\n" +
 "textureUVVar=textureUV;\n" +
-"gl_Position=projection*view*world*positionVec4;\n" +
+"#ifdef SHADING\n"+
+"transformedNormalVar=normalize(worldInverseTrans3*normal);\n" +
+"worldPositionVar=world*positionVec4;\n" +
+"#endif\n"+
 "}";
 return shader;
 };
 ShaderProgram.getDefaultFragment=function(){
 var shader="" +
 "precision highp float;\n" +
-"#ifndef SHADING\n" +
-"uniform vec3 md;\n" + // solid color instead of material diffuse
+ // if shading is disabled, this is solid color instead of material diffuse
+ "uniform vec3 md;\n" + // material diffuse color (0-1 each component). Is multiplied by texture/solid color.
+"#ifdef SHADING\n" +
+"uniform mat4 viewInverse; /* internal */\n" +
+"uniform vec4 lightPosition;\n" + // source light direction
+"uniform vec3 sa;\n" + // source light ambient color
+ "uniform vec3 ma;\n" + // material ambient color (-1 to 1 each component).
+ "uniform vec3 sd;\n" + // source light diffuse color
+ "uniform vec3 ss;\n" + // source light specular color
+ "uniform vec3 ms;\n" + // material specular color (0-1 each comp.).  Affects how intense highlights are.
+ "uniform float mshin;\n" + // material shininess
 "#endif\n" +
 "uniform sampler2D sampler;\n" + // texture sampler
 "uniform float useTexture;\n" + // use texture sampler rather than solid color if 1
@@ -572,8 +550,8 @@ var shader="" +
 "varying vec2 textureUVVar;\n"+
 "varying vec3 colorAttrVar;\n" +
 "#ifdef SHADING\n" +
-"varying vec3 ambientAndSpecularVar;\n" +
-"varying vec3 diffuseVar;\n" +
+"varying vec4 worldPositionVar;\n" +
+"varying vec3 transformedNormalVar;\n"+
 "#endif\n" +
 "void main(){\n" +
 " vec4 baseColor;\n" +
@@ -586,11 +564,30 @@ var shader="" +
 " baseColor=baseColor*(1.0-useColorAttr) +\n"+
 "  vec4(colorAttrVar,1.0)*useColorAttr;\n" +
 "#ifdef SHADING\n" +
-" vec3 phong=ambientAndSpecularVar+diffuseVar*baseColor.rgb;\n" +
-" gl_FragColor=vec4(phong,baseColor.a);\n" +
-"#else\n" +
-" gl_FragColor=baseColor;\n" +
+"vec3 sdir;\n"+
+"float attenuation;\n"+
+"if(lightPosition.w == 0.0){\n" +
+" sdir=normalize(vec3(lightPosition));\n" +
+" attenuation=1.0;\n" +
+"} else {\n"+
+" vec3 vertexToLight=vec3(lightPosition-worldPositionVar);\n"+
+" float dist=length(vertexToLight);\n"+
+" sdir=normalize(vertexToLight);\n" +
+" attenuation=1.0/(1.0*dist);\n" +
+"}\n"+
+"float diffInt=dot(transformedNormalVar,sdir);" +
+"vec3 viewPosition=normalize(vec3(viewInverse*vec4(0,0,0,1)-worldPositionVar));\n" +
+"vec3 phong=sa*ma; /* ambient*/\n" +
+"if(diffInt>=0.0){\n" +
+"   // specular reflection\n" +
+"   phong+=(ss*ms*pow(max(dot(reflect(-sdir,transformedNormalVar)," +
+"      viewPosition),0.0),mshin));\n" +
+"}\n"+
+" // diffuse\n"+
+" phong+=sd*md*baseColor.rgb*max(0.0,dot(transformedNormalVar,sdir))*attenuation;\n" +
+" baseColor=vec4(phong,baseColor.a);\n" +
 "#endif\n" +
+" gl_FragColor=baseColor;\n" +
 "}";
 return shader;
 };

@@ -483,7 +483,7 @@ ObjData._loadObj=function(str){
          mesh.recalcNormals();
         }
         ret.meshes.push({
-          name: seenFacesAfterObjName ? objName : oldObjName, 
+          name: seenFacesAfterObjName ? objName : oldObjName,
           usemtl: usemtl, data: mesh});
         lookBack=0;
         vertexKind=0;
@@ -501,7 +501,7 @@ ObjData._loadObj=function(str){
          mesh.recalcNormals();
         }
         ret.meshes.push({
-          name: seenFacesAfterObjName ? objName : oldObjName, 
+          name: seenFacesAfterObjName ? objName : oldObjName,
           usemtl: usemtl, data: mesh});
         lookBack=0;
         vertexKind=0;
@@ -538,7 +538,7 @@ ObjData._loadObj=function(str){
    mesh.recalcNormals();
  }
  ret.meshes.push({
-          name: seenFacesAfterObjName ? objName : oldObjName, 
+          name: seenFacesAfterObjName ? objName : oldObjName,
           usemtl: usemtl, data: mesh});
  return {success: ret};
 }
