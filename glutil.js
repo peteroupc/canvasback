@@ -381,12 +381,11 @@ if(!namedColors){
 })(GLUtil);
 
 var ShaderProgram=function(context, vertexShader, fragmentShader){
- var disableLighting=false;
  if(vertexShader==null){
-  vertexShader=ShaderProgram.getDefaultVertex(disableLighting);
+  vertexShader=ShaderProgram.getDefaultVertex();
  }
  if(fragmentShader==null){
-  fragmentShader=ShaderProgram.getDefaultFragment(disableLighting);
+  fragmentShader=ShaderProgram.getDefaultFragment();
  }
  this.program=ShaderProgram._compileShaders(context,vertexShader,fragmentShader);
  this.attributes={};
@@ -502,7 +501,7 @@ ShaderProgram.prototype.setLightSource=function(light){
  });
  return this;
 }
-ShaderProgram.getDefaultVertex=function(disableShading){
+ShaderProgram.getDefaultVertex=function(){
 var shader="" +
 "attribute vec3 position;\n" +
 "attribute vec3 normal;\n" +
@@ -512,10 +511,10 @@ var shader="" +
 "uniform mat4 view;\n" +
 "uniform mat4 projection;\n"+
 "varying vec2 textureUVVar;\n"+
-"varying vec3 colorAttrVar;\n";
-if(!disableShading){
- shader+="uniform mat4 viewInverse; /* internal */\n" +
- "uniform mat3 worldInverseTrans3; /* internal */\n" +
+"varying vec3 colorAttrVar;\n" +
+"#ifdef SHADING\n" +
+"uniform mat4 viewInverse; /* internal */\n" +
+"uniform mat3 worldInverseTrans3; /* internal */\n" +
  "uniform float alpha;\n"+
  "uniform vec4 lightPosition;\n" + // source light direction
  "uniform vec3 sa;\n" + // source light ambient color
@@ -526,12 +525,12 @@ if(!disableShading){
  "uniform vec3 ms;\n" + // material specular color (0-1 each comp.).  Affects how intense highlights are.
  "uniform float mshin;\n" + // material shininess
  "varying vec3 ambientAndSpecularVar;\n" +
- "varying vec3 diffuseVar;\n";
-}
-shader+="void main(){\n" +
-"vec4 positionVec4=vec4(position,1.0);\n";
-if(!disableShading){
- shader+="vec4 worldPosition=world*positionVec4;\n" +
+ "varying vec3 diffuseVar;\n" +
+"#endif\n" +
+"void main(){\n" +
+"vec4 positionVec4=vec4(position,1.0);\n" +
+"#ifdef SHADING\n" +
+"vec4 worldPosition=world*positionVec4;\n" +
 "vec3 sdir;\n"+
 "float attenuation;\n"+
 "if(lightPosition.w == 0.0){\n" +
@@ -553,46 +552,46 @@ if(!disableShading){
 "      viewPosition),0.0),mshin));\n" +
 "}\n"+
 "diffuseVar=sd*md*max(0.0,dot(transformedNormal,sdir))*attenuation;\n" +
-"ambientAndSpecularVar=ambientAndSpecular;\n";
-}
-shader+="colorAttrVar=colorAttr;\n";
-shader+="textureUVVar=textureUV;\n";
-shader+="gl_Position=projection*view*world*positionVec4;\n" +
+"ambientAndSpecularVar=ambientAndSpecular;\n" +
+"#endif\n" +
+"colorAttrVar=colorAttr;\n" +
+"textureUVVar=textureUV;\n" +
+"gl_Position=projection*view*world*positionVec4;\n" +
 "}";
 return shader;
 };
-ShaderProgram.getDefaultFragment=function(disableShading){
+ShaderProgram.getDefaultFragment=function(){
 var shader="" +
-"precision highp float;\n";
-if(disableShading){
-shader+="uniform vec3 md;\n"; // solid color instead of material diffuse
-}
-shader+="uniform sampler2D sampler;\n" + // texture sampler
+"precision highp float;\n" +
+"#ifndef SHADING\n" +
+"uniform vec3 md;\n" + // solid color instead of material diffuse
+"#endif\n" +
+"uniform sampler2D sampler;\n" + // texture sampler
 "uniform float useTexture;\n" + // use texture sampler rather than solid color if 1
 "uniform float useColorAttr;\n" + // use color attribute if 1
 "varying vec2 textureUVVar;\n"+
-"varying vec3 colorAttrVar;\n";
-if(!disableShading){
- shader+="varying vec3 ambientAndSpecularVar;\n" +
- "varying vec3 diffuseVar;\n";
-}
-shader+="void main(){\n";
-shader+=" vec4 baseColor;\n";
-if(!disableShading){
-shader+=" baseColor=vec4(1.0,1.0,1.0,1.0)*(1.0-useTexture);\n";
-} else {
-shader+=" baseColor=vec4(md,1.0)*(1.0-useTexture);\n";
-}
-shader+=" baseColor+=texture2D(sampler,textureUVVar)*useTexture;\n"+
+"varying vec3 colorAttrVar;\n" +
+"#ifdef SHADING\n" +
+"varying vec3 ambientAndSpecularVar;\n" +
+"varying vec3 diffuseVar;\n" +
+"#endif\n" +
+"void main(){\n" +
+" vec4 baseColor;\n" +
+"#ifdef SHADING\n" +
+" baseColor=vec4(1.0,1.0,1.0,1.0)*(1.0-useTexture);\n" +
+"#else\n" +
+" baseColor=vec4(md,1.0)*(1.0-useTexture);\n" +
+"#endif\n" +
+" baseColor+=texture2D(sampler,textureUVVar)*useTexture;\n"+
 " baseColor=baseColor*(1.0-useColorAttr) +\n"+
-"  vec4(colorAttrVar,1.0)*useColorAttr;\n";
-if(!disableShading){
-shader+=" vec3 phong=ambientAndSpecularVar+diffuseVar*baseColor.rgb;\n" +
-" gl_FragColor=vec4(phong,baseColor.a);\n";
-} else {
-shader+=" gl_FragColor=baseColor;\n";
-}
-shader+="}";
+"  vec4(colorAttrVar,1.0)*useColorAttr;\n" +
+"#ifdef SHADING\n" +
+" vec3 phong=ambientAndSpecularVar+diffuseVar*baseColor.rgb;\n" +
+" gl_FragColor=vec4(phong,baseColor.a);\n" +
+"#else\n" +
+" gl_FragColor=baseColor;\n" +
+"#endif\n" +
+"}";
 return shader;
 };
 function LightSource(position, ambient, diffuse, specular) {
@@ -789,6 +788,7 @@ Texture.prototype.bind=function(program){
  }
  if(this.material){
    program.setUniforms({
+  "useTexture":1.0,
   "mshin":this.material.shininess,
   "ma":[this.material.ambient[0],
     this.material.ambient[1], this.material.ambient[2]],
@@ -850,6 +850,10 @@ TextureImage.prototype.mapToContext=function(context){
    context.texParameteri(context.TEXTURE_2D,
      context.TEXTURE_MIN_FILTER, context.LINEAR_MIPMAP_LINEAR);
    context.generateMipmap(context.TEXTURE_2D);
+   context.texParameteri(context.TEXTURE_2D,
+     context.TEXTURE_WRAP_S, context.REPEAT);
+   context.texParameteri(context.TEXTURE_2D,
+     context.TEXTURE_WRAP_T, context.REPEAT);
   } else {
    context.texParameteri(context.TEXTURE_2D,
      context.TEXTURE_MIN_FILTER, context.LINEAR);
@@ -890,7 +894,10 @@ function Scene3D(context){
  this.context=context;
  this.context.viewport(0,0,
     this.context.canvas.width*1.0,this.context.canvas.height*1.0);
- this.program=new ShaderProgram(context);
+ this.lightingEnabled=true;
+ this.program=new ShaderProgram(context,
+   this._getDefines()+ShaderProgram.getDefaultVertex(),
+   this._getDefines()+ShaderProgram.getDefaultFragment());
  this.shapes=[];
  this.clearColor=[0,0,0,1];
  this.textureCache={};
@@ -911,6 +918,12 @@ function Scene3D(context){
     this.context.COLOR_BUFFER_BIT |
     this.context.DEPTH_BUFFER_BIT);
 }
+Scene3D.prototype._getDefines=function(){
+ var ret="";
+ if(this.lightingEnabled)
+  ret+="#define SHADING\n"
+ return ret;
+}
 Scene3D.prototype._initProgramData=function(){
   this.program.setUniforms({"sampler":0});
   this.program.setLightSource(this.lightSource);
@@ -925,9 +938,10 @@ Scene3D.prototype.useProgram=function(program){
  return this;
 }
 Scene3D.prototype.disableLighting=function(){
- var program=new ShaderProgram(this.context,
-   ShaderProgram.getDefaultVertex(true),
-   ShaderProgram.getDefaultFragment(true));
+ this.lightingEnabled=false;
+ var program=new ShaderProgram(context,
+   this._getDefines()+ShaderProgram.getDefaultVertex(),
+   this._getDefines()+ShaderProgram.getDefaultFragment());
  return this.useProgram(program);
 }
 Scene3D.prototype.getWidth=function(){
@@ -1004,6 +1018,12 @@ Scene3D.prototype.setProjectionMatrix=function(matrix){
 }
 Scene3D.prototype.setViewMatrix=function(matrix){
  this._viewMatrix=GLMath.mat4copy(matrix);
+ this._matrixDirty=true;
+ return this;
+}
+Scene3D.prototype.setLookAt=function(eye, center, up){
+ up = up || [0,1,0];
+ this._viewMatrix=GLMath.mat4lookat(eye, center, up);
  this._matrixDirty=true;
  return this;
 }

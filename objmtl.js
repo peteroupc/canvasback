@@ -29,14 +29,14 @@ ObjData.prototype.toShape=function(context){
 ObjData._resolvePath=function(path, name){
  // Relatively dumb for a relative path
  // resolver, but sufficient here, as it will
- // only be used with "mtllib"/"map_Kd" strings
- // without path information
+ // only be used with relative "mtllib"/"map_Kd"
+ // strings
  var ret=path;
  var lastSlash=ret.lastIndexOf("/")
  if(lastSlash>=0){
-  ret=ret.substr(0,lastSlash+1)+name;
+  ret=ret.substr(0,lastSlash+1)+name.replace(/\\/g,"/");
  } else {
-  ret=name;
+  ret=name.replace(/\\/g,"/");
  }
  return ret;
 }
@@ -59,6 +59,7 @@ MtlData.prototype._resolveTextures=function(){
     if(mtl.textureName){
      var resolvedName=ObjData._resolvePath(
        this.url,mtl.textureName);
+     //console.log(resolvedName)
      this.list[i].data=new Texture(resolvedName)
        .setParams(mtl);
     }
@@ -148,7 +149,7 @@ ObjData.loadObjFromUrl=function(url){
           return Promise.resolve(obj);
         }, function(result){
           obj.mtl=null;
-          //console.log(result)
+          console.log(result)
           return Promise.resolve(obj);
         });
      } else {
@@ -164,11 +165,11 @@ ObjData.loadObjFromUrl=function(url){
 MtlData._loadMtl=function(str){
  var number="(-?(?:\\d+\\.?\\d*|\\d*\\.\\d+)(?:[Ee][\\+\\-]?\\d+)?)"
  var nonnegInteger="(\\d+)"
- var oneNumLine=new RegExp("^(Ns|d|Tr|Ni)\\s+"+number+"\\s*$")
+ var oneNumLine=new RegExp("^(Ns|d|Tr|Ni|Ke)\\s+"+number+"\\s*$")
  var oneIntLine=new RegExp("^(illum)\\s+"+nonnegInteger+"\\s*$")
- var threeNumLine=new RegExp("^(Kd|Ka|Ks|Ke|Tf)\\s+"+number+"\\s+"+number
+ var threeNumLine=new RegExp("^(Kd|Ka|Ks|Tf)\\s+"+number+"\\s+"+number
    +"\\s+"+number+"\\s*$")
- var mapLine=new RegExp("^(map_Kd|map_bump|map_Ka|map_Ks)\\s+(?!\\/)([^\\:\\?\\#\\s\\\\]+)$")
+ var mapLine=new RegExp("^(map_Kd|map_bump|map_Ka|map_Ks)\\s+(.*?)\\s*$")
  var newmtlLine=new RegExp("^newmtl\\s+([^\\s]+)$")
  var faceStart=new RegExp("^f\\s+")
  var lines=str.split(/\r?\n/)
@@ -214,7 +215,10 @@ MtlData._loadMtl=function(str){
   }
   e=mapLine.exec(line)
   if(e){
-    currentMat[e[1]]=e[2];
+     // only allow relative paths
+    if((/^(?![\/\\])([^\:\?\#\s]+)$/).test(e[2])){
+     currentMat[e[1]]=e[2];
+    }
     continue;
   }
   e=oneIntLine.exec(line)
@@ -314,7 +318,7 @@ ObjData._loadObj=function(str){
  var uvLine=new RegExp("^vt\\s+"+number+"\\s+"+number+"(\\s+"+number+")?\\s*$")
  var smoothLine=new RegExp("^(s)\\s+(.*)$")
  var usemtlLine=new RegExp("^(usemtl|o|g)\\s+([^\\s]+)\\s*$")
- var mtllibLine=new RegExp("^(mtllib)\\s+(?!\\/)([^\\:\\?\\#\\s\\\\]+)\\s*$")
+ var mtllibLine=new RegExp("^(mtllib)\\s+(?![\\/\\\\])([^\\:\\?\\#\\s]+)\\s*$")
  var normalLine=new RegExp("^vn\\s+"+number+"\\s+"+number+"\\s+"+number+"\\s*")
  var faceStart=new RegExp("^f\\s+")
  var lines=str.split(/\r?\n/)
@@ -387,7 +391,7 @@ ObjData._loadObj=function(str){
         vertices[vtx][0],vertices[vtx][1],vertices[vtx][2],0,0,0,0,0);
       currentFaces[faceCount]=faces[faces.length-1];
       line=line.substr(e[0].length);
-     faceCount++;
+      faceCount++;
       continue;
      }
      e=vertexNormalOnly.exec(line)
@@ -420,7 +424,7 @@ ObjData._loadObj=function(str){
         0,0,0,uvs[uv][0],uvs[uv][1]);
       currentFaces[faceCount]=faces[faces.length-1];
       line=line.substr(e[0].length);
-     faceCount++;
+      faceCount++;
       continue;
      }
      e=vertexUVNormal.exec(line)
@@ -479,7 +483,7 @@ ObjData._loadObj=function(str){
          mesh.recalcNormals();
         }
         ret.meshes.push({
-          name: seenFacesAfterObjName ? objName : oldObjName,
+          name: seenFacesAfterObjName ? objName : oldObjName, 
           usemtl: usemtl, data: mesh});
         lookBack=0;
         vertexKind=0;
@@ -497,7 +501,7 @@ ObjData._loadObj=function(str){
          mesh.recalcNormals();
         }
         ret.meshes.push({
-          name: seenFacesAfterObjName ? objName : oldObjName,
+          name: seenFacesAfterObjName ? objName : oldObjName, 
           usemtl: usemtl, data: mesh});
         lookBack=0;
         vertexKind=0;
@@ -534,7 +538,7 @@ ObjData._loadObj=function(str){
    mesh.recalcNormals();
  }
  ret.meshes.push({
-          name: seenFacesAfterObjName ? objName : oldObjName,
+          name: seenFacesAfterObjName ? objName : oldObjName, 
           usemtl: usemtl, data: mesh});
  return {success: ret};
 }
