@@ -6,6 +6,17 @@ http://creativecommons.org/publicdomain/zero/1.0/
 If you like this, you should donate to Peter O.
 at: http://upokecenter.dreamhosters.com/articles/donate-now-2/
 */
+(function (g,f) {
+	if (typeof define=="function" && define.amd) {
+		define([ "exports" ], f);
+	} else if (typeof exports=="object") {
+		f(exports);
+	} else {
+		f(g);
+	}
+}(this, function (exports) {
+	if (exports.GLMath) { return; }
+
 var GLMath={
 vec3cross:function(a,b){
 return [a[1]*b[2]-a[2]*b[1],
@@ -187,10 +198,10 @@ mat4scale:function(mat,v3, v3y, v3z){
       scaleZ=v3[2];
   }
 	return [
-		mat[0]*scaleX, mat[1]*scaleY, mat[2]*scaleZ, mat[3],
-		mat[4]*scaleX, mat[5]*scaleY, mat[6]*scaleZ, mat[7],
-		mat[8]*scaleX, mat[9]*scaleY, mat[10]*scaleZ, mat[11],
-		mat[12]*scaleX, mat[13]*scaleY, mat[14]*scaleZ, mat[15]
+  mat[0]*scaleX, mat[1]*scaleX, mat[2]*scaleX, mat[3]*scaleX,
+  mat[4]*scaleY, mat[5]*scaleY, mat[6]*scaleY, mat[7]*scaleY,
+  mat[8]*scaleZ, mat[9]*scaleZ, mat[10]*scaleZ, mat[11]*scaleZ,
+  mat[12], mat[13], mat[14], mat[15]
 	];
 },
 mat3identity:function(){
@@ -416,3 +427,5 @@ return [cost+mcos*x2, v0+zs, v1-ys, 0, v0-zs, cost+mcos*y2, v2+xs, 0, v1+ys,
 }
 }
 };
+	exports.GLMath=GLMath;
+}));

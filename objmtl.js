@@ -6,6 +6,29 @@ http://creativecommons.org/publicdomain/zero/1.0/
 If you like this, you should donate to Peter O.
 at: http://upokecenter.dreamhosters.com/articles/donate-now-2/
 */
+/*
+OBJ/Material file loader.  Perhaps the only interesting
+method here is described below:
+
+ObjData.loadObjFromUrl(url)
+
+Loads a WaveFront OBJ file (along with its associated MTL, or
+material file, if available) asynchronously.
+
+Returns a promise that:
+- Resolves when:
+The OBJ file is loaded successfully, whether or not its associated
+MTL is also loaded successfully.  The result is an ObjData object
+with the following properties:
+url - URL of the OBJ file
+meshes - An array of meshes.  Two or more meshes may have
+the same name (the "name" property in each mesh).  The "data"
+property holds data for each mesh.
+toShape() - Creates a Shape object from the ObjData's data.
+- Is rejected when:
+An error occurs when loading the OBJ file.
+*/
+
 function ObjData(){
   this.url=null;
   this.mtllib=null;
@@ -148,6 +171,7 @@ ObjData.loadObjFromUrl=function(url){
           obj.mtl=result;
           return Promise.resolve(obj);
         }, function(result){
+          // MTL not loaded successfully, ignore
           obj.mtl=null;
           console.log(result)
           return Promise.resolve(obj);
