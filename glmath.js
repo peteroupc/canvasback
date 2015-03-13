@@ -427,5 +427,5 @@ return [cost+mcos*x2, v0+zs, v1-ys, 0, v0-zs, cost+mcos*y2, v2+xs, 0, v1+ys,
 }
 }
 };
-	exports.GLMath=GLMath;
+	exports["GLMath"]=GLMath;
 }));
