@@ -543,11 +543,11 @@ var shader="" +
 "uniform mat4 viewInverse; /* internal */\n" +
 "uniform vec4 lightPosition;\n" + // source light direction
 "uniform vec3 sa;\n" + // source light ambient color
- "uniform vec3 ma;\n" + // material ambient color (-1 to 1 each component).
- "uniform vec3 sd;\n" + // source light diffuse color
- "uniform vec3 ss;\n" + // source light specular color
- "uniform vec3 ms;\n" + // material specular color (0-1 each comp.).  Affects how intense highlights are.
- "uniform float mshin;\n" + // material shininess
+"uniform vec3 ma;\n" + // material ambient color (-1 to 1 each component).
+"uniform vec3 sd;\n" + // source light diffuse color
+"uniform vec3 ss;\n" + // source light specular color
+"uniform vec3 ms;\n" + // material specular color (0-1 each comp.).  Affects how intense highlights are.
+"uniform float mshin;\n" + // material shininess
 "#endif\n" +
 "uniform sampler2D sampler;\n" + // texture sampler
 "uniform float useTexture;\n" + // use texture sampler rather than solid color if 1
@@ -622,6 +622,8 @@ LightSource.pointLight=function(position,ambient,diffuse,specular){
  return source
 };
 
+
+/** Specifies parameters for geometry materials.*/
 function MaterialShade(ambient, diffuse, specular,shininess) {
  // NOTE: A solid color is defined by setting ambient
  // and diffuse to the same value
@@ -644,6 +646,9 @@ MaterialShade.prototype.bind=function(program){
  });
 }
 
+
+
+/** Specifies the triangles or lines that make up a geometric shape.*/
 function Mesh(vertices,faces,format){
  this.vertices=vertices||[];
  this.tris=faces||[];
@@ -663,6 +668,8 @@ function Mesh(vertices,faces,format){
   var oldBits=this.attributeBits;
   var newBits=oldBits|newAttributes;
   if(newBits==oldBits)return;
+  // Rebuild the list of vertices if a new kind of
+  // attribute is added to the mesh
   var newVertices=[];
   var newStride=3;
   if((newBits&Mesh.COLORS_BIT)!=0)
@@ -821,15 +828,15 @@ Mesh.prototype.recalcNormals=function(){
     this.stride,3);
   return this;
 };
- Mesh.getStride=function(format){
+Mesh.getStride=function(format){
   if(format<0 || format>8)return -1;
   return [3,6,6,9,5,8,8,11][format];
  }
- Mesh.normalOffset=function(format){
+Mesh.normalOffset=function(format){
   if(format<0 || format>8)return -1;
   return [-1,3,-1,3,-1,3,-1,3][format];
  }
- Mesh.colorOffset=function(format){
+Mesh.colorOffset=function(format){
   if(format<0 || format>8)return -1;
   return [-1,-1,3,6,-1,-1,3,6][format];
  }
@@ -837,14 +844,18 @@ Mesh.texCoordOffset=function(format){
   if(format<0 || format>8)return -1;
   return [-1,-1,-1,-1,3,6,6,9][format];
 }
+/** The mesh contains normals for each vertex. */
 Mesh.NORMALS_BIT = 1;
+/** The mesh contains colors for each vertex. */
 Mesh.COLORS_BIT = 2;
+/** The mesh contains texture coordinates for each vertex. */
 Mesh.TEXCOORDS_BIT = 4;
 Mesh.TRIANGLES = 0;
 Mesh.QUAD_STRIP = 1;
 Mesh.QUADS = 2;
 Mesh.LINES = 3;
 
+/** A geometric mesh in the form of a vertex buffer object. */
 function BufferedMesh(mesh, context){
  var vertbuffer=context.createBuffer();
  var facebuffer=context.createBuffer();
@@ -920,6 +931,7 @@ BufferedMesh.prototype.bind=function(program){
   }
 }
 
+
 var Texture=function(name){
  this.textureImage=null;
  this.name=name;
@@ -986,6 +998,7 @@ Texture.prototype.bind=function(program){
   });
  }
 }
+
 //////////////////////////////////
 var TextureImage=function(name){
   this.textureName=null;
@@ -1158,15 +1171,10 @@ Scene3D.prototype._setClearColor=function(){
     this.clearColor[2],this.clearColor[3]);
   return this;
 }
+
 Scene3D.prototype.setClearColor=function(r,g,b,a){
  this.clearColor=GLUtil["toGLColor"](r,g,b,a);
  return this._setClearColor();
-}
-Scene3D.prototype.getColor=function(r,g,b,a){
- return MaterialShade.fromColor(r,g,b,a);
-}
-Scene3D.prototype.getMaterialParams=function(am,di,sp,sh){
- return new MaterialShade(am,di,sp,sh);
 }
 Scene3D.prototype.loadTexture=function(name){
  // Returns a promise with a Texture object result if it resolves
@@ -1232,6 +1240,8 @@ Scene3D.prototype.render=function(){
   }
   this.context.flush();
 }
+
+
 
 function MultiShape(){
  this.shapes=[];
@@ -1349,6 +1359,7 @@ Shape.prototype.render=function(program){
     this.vertfaces.facesLength,
     this.vertfaces.type, 0);
 };
+
 ///////////////
 Shape.prototype._updateMatrix=function(){
   this._matrixDirty=false;
