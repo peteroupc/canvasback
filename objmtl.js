@@ -501,7 +501,8 @@ ObjData._loadObj=function(str){
       console.log(usemtl)
       // Changes the material used
       if(resolvedVertices.length>0){
-        mesh=new Mesh(resolvedVertices,faces,Mesh.VEC3DNORMALUV);
+        mesh=new Mesh(resolvedVertices,faces,
+          Mesh.NORMALS_BIT|Mesh.TEXCOORDS_BIT);
         if(!haveNormals){
          // No normals in this mesh, so calculate them
          mesh.recalcNormals();
@@ -519,7 +520,8 @@ ObjData._loadObj=function(str){
     } else if(e[1]=="g"){
       // Starts a new group
       if(resolvedVertices.length>0){
-        mesh=new Mesh(resolvedVertices,faces,Mesh.VEC3DNORMALUV);
+        mesh=new Mesh(resolvedVertices,faces,
+          Mesh.NORMALS_BIT|Mesh.TEXCOORDS_BIT);
         if(!haveNormals){
          // No normals in this mesh, so calculate them
          mesh.recalcNormals();
@@ -556,7 +558,8 @@ ObjData._loadObj=function(str){
   }
   return {error: new Error("unsupported line: "+line)}
  }
- mesh=new Mesh(resolvedVertices,faces,Mesh.VEC3DNORMALUV);
+ mesh=new Mesh(resolvedVertices,faces,
+          Mesh.NORMALS_BIT|Mesh.TEXCOORDS_BIT);
  if(!haveNormals){
    // No normals in this mesh, so calculate them
    mesh.recalcNormals();
