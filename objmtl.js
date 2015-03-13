@@ -39,10 +39,10 @@ function MtlData(){
   this.url=null;
   this.list=[];
 }
-ObjData.prototype.toShape=function(context){
+ObjData.prototype.toShape=function(){
  var multi=new MultiShape();
  for(var i=0;i<this.meshes.length;i++){
-  var shape=new Shape(context, this.meshes[i].data);
+  var shape=new Shape(this.meshes[i].data);
   var mat=this._getMaterial(this.meshes[i]);
   shape.setMaterial(mat);
   multi.add(shape);

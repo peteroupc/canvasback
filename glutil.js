@@ -761,35 +761,6 @@ function Mesh(vertices,faces,format){
   return this;
  }
 }
-Mesh.prototype.bind=function(context){
- var vertbuffer=context.createBuffer();
- var facebuffer=context.createBuffer();
- context.bindBuffer(context.ARRAY_BUFFER, vertbuffer);
- context.bindBuffer(context.ELEMENT_ARRAY_BUFFER, facebuffer);
- context.bufferData(context.ARRAY_BUFFER,
-   new Float32Array(this.vertices), context.STATIC_DRAW);
- var type=context.UNSIGNED_SHORT;
- if(this.vertices.length>=65536 || this.tris.length>=65536){
-  type=context.UNSIGNED_INT;
-  context.bufferData(context.ELEMENT_ARRAY_BUFFER,
-    new Uint32Array(this.tris), context.STATIC_DRAW);
- } else if(this.vertices.length<=256 && this.tris.length<=256){
-  type=context.UNSIGNED_BYTE;
-  context.bufferData(context.ELEMENT_ARRAY_BUFFER,
-    new Uint8Array(this.tris), context.STATIC_DRAW);
- } else {
-  context.bufferData(context.ELEMENT_ARRAY_BUFFER,
-    new Uint16Array(this.tris), context.STATIC_DRAW);
- }
- for(var i=0;i<this.tris.length;i++){
-  if(this.tris[i]>=this.vertices.length/Mesh.getStride(this.attributeBits)){
-   console.log("tri exceeds vert length: "+this.tris[i]+" vs. "+
-     this.vertices.length/Mesh.getStride(this.attributeBits));
-  }
- }
- return {verts:vertbuffer, faces:facebuffer,
-   facesLength: this.tris.length, type:type, format:this.attributeBits};
-}
 Mesh._recalcNormals=function(vertices,faces,stride,offset){
   for(var i=0;i<vertices.length;i+=stride){
     vertices[i+offset]=0.0
@@ -867,6 +838,81 @@ Mesh.TEXCOORDS_BIT = 4;
 Mesh.TRIANGLES = 0;
 Mesh.QUAD_STRIP = 0;
 Mesh.QUADS = 1;
+
+function BufferedMesh(mesh, context){
+ var vertbuffer=context.createBuffer();
+ var facebuffer=context.createBuffer();
+ context.bindBuffer(context.ARRAY_BUFFER, vertbuffer);
+ context.bindBuffer(context.ELEMENT_ARRAY_BUFFER, facebuffer);
+ context.bufferData(context.ARRAY_BUFFER,
+   new Float32Array(mesh.vertices), context.STATIC_DRAW);
+ var type=context.UNSIGNED_SHORT;
+ if(mesh.vertices.length>=65536 || mesh.tris.length>=65536){
+  type=context.UNSIGNED_INT;
+  context.bufferData(context.ELEMENT_ARRAY_BUFFER,
+    new Uint32Array(mesh.tris), context.STATIC_DRAW);
+ } else if(mesh.vertices.length<=256 && mesh.tris.length<=256){
+  type=context.UNSIGNED_BYTE;
+  context.bufferData(context.ELEMENT_ARRAY_BUFFER,
+    new Uint8Array(mesh.tris), context.STATIC_DRAW);
+ } else {
+  context.bufferData(context.ELEMENT_ARRAY_BUFFER,
+    new Uint16Array(mesh.tris), context.STATIC_DRAW);
+ }
+  this.verts=vertbuffer;
+  this.faces=facebuffer;
+  this.facesLength=mesh.tris.length;
+  this.type=type;
+  this.format=mesh.attributeBits;
+  this.context=context;
+}
+BufferedMesh._vertexAttrib=function(context, attrib, size, type, stride, offset){
+  if(attrib!==null){
+    context.enableVertexAttribArray(attrib);
+    context.vertexAttribPointer(attrib,size,type,false,stride,offset);
+  }
+}
+BufferedMesh.prototype.unload=function(){
+ if(this.verts!=null)
+  this.context.deleteBuffer(this.verts);
+ if(this.faces!=null)
+  this.context.deleteBuffer(this.faces);
+ this.verts=null;
+ this.faces=null;
+}
+BufferedMesh.prototype.bind=function(program){
+  var context=program.getContext();
+  if(this.verts==null || this.faces==null){
+   throw new Error("mesh buffer unloaded");
+  }
+  if(context!=this.context){
+   throw new Error("can't bind mesh: context mismatch");
+  }
+  context.bindBuffer(context.ARRAY_BUFFER, this.verts);
+  context.bindBuffer(context.ELEMENT_ARRAY_BUFFER, this.faces);
+  var format=this.format;
+  var stride=Mesh.getStride(format);
+  BufferedMesh._vertexAttrib(context,
+    program.get("position"), 3, context.FLOAT, stride*4, 0);
+  var offset=Mesh.normalOffset(format);
+  if(offset>=0){
+   BufferedMesh._vertexAttrib(context,
+    program.get("normal"), 3,
+    context.FLOAT, stride*4, offset*4);
+  }
+  offset=Mesh.colorOffset(format);
+  if(offset>=0){
+   BufferedMesh._vertexAttrib(context,
+    program.get("colorAttr"), 3,
+    context.FLOAT, stride*4, offset*4);
+  }
+  offset=Mesh.texCoordOffset(format);
+  if(offset>=0){
+   BufferedMesh._vertexAttrib(context,
+     program.get("textureUV"), 2,
+    context.FLOAT, stride*4, offset*4);
+  }
+}
 
 var Texture=function(name){
  this.textureImage=null;
@@ -1164,7 +1210,7 @@ Scene3D.prototype.setLookAt=function(eye, center, up){
  return this;
 }
 Scene3D.prototype.addShape=function(shape){
- this.shapes.push(shape);
+ this.shapes.push(shape.loadMesh(this.context));
  return this;
 }
 Scene3D.prototype.setLightSource=function(light){
@@ -1194,18 +1240,20 @@ MultiShape.prototype.render=function(program){
   this.shapes[i].render(program);
  }
 }
+MultiShape.prototype.loadMesh=function(context){
+ for(var i=0;i<this.shapes.length;i++){
+  this.shapes[i].loadMesh(context);
+ }
+ return this;
+}
 MultiShape.prototype.add=function(shape){
  this.shapes.push(shape);
 }
 
-function Shape(context,vertfaces){
-  if(vertfaces==null)throw new Error("vertfaces is null");
-  if(vertfaces.constructor==Mesh){
-   this.vertfaces=vertfaces.bind(context);
-  } else {
-   this.vertfaces=vertfaces;
-  }
-  this.context=context;
+function Shape(mesh){
+  if(mesh==null)throw new Error("mesh is null");
+  this.mesh=mesh;
+  this.vertfaces=null;
   this.material=new MaterialShade();
   this.scale=[1,1,1];
   this.angle=0;
@@ -1219,6 +1267,12 @@ function Shape(context,vertfaces){
 }
 Shape.prototype.setDrawLines=function(value){
  this.drawLines=value;
+ return this;
+}
+Shape.prototype.loadMesh=function(context){
+ if(!this.vertfaces){
+  this.vertfaces=new BufferedMesh(this.mesh,context);
+ }
  return this;
 }
 Shape.prototype.setMatrix=function(value){
@@ -1265,14 +1319,13 @@ Shape.prototype.render=function(program){
    this.material.bind(program);
   }
   // Bind vertex attributes
-  Shape._bind(this.context,this.vertfaces,
-    program.get("position"),
-    program.get("normal"),
-    program.get("textureUV"),
-    program.get("colorAttr"));
+  if(this.vertfaces==null){
+   this.vertfaces=BufferedMesh.fromMesh(mesh,program.getContext());
+  }
+  this.vertfaces.bind(program);
   // Set world matrix
-  var uniformMatrix=program.get("world");
   var uniforms={};
+  var uniformMatrix=program.get("world");
   if(uniformMatrix!==null){
    if(this._matrixDirty){
     this._updateMatrix();
@@ -1283,9 +1336,10 @@ Shape.prototype.render=function(program){
   uniforms["useColorAttr"]=((this.vertfaces.format&Mesh.COLORS_BIT)!=0) ?
      1.0 : 0.0;
   program.setUniforms(uniforms);
+  var context=program.getContext();
   // Draw the shape
-  this.context.drawElements(
-    this.drawLines ? this.context.LINES : this.context.TRIANGLES,
+  context.drawElements(
+    this.drawLines ? context.LINES : context.TRIANGLES,
     this.vertfaces.facesLength,
     this.vertfaces.type, 0);
 };
@@ -1302,32 +1356,3 @@ Shape.prototype._updateMatrix=function(){
   this._invTransModel3=GLMath.mat4inverseTranspose3(this.matrix);
 }
 /////////////
-Shape._vertexAttrib=function(context, attrib, size, type, stride, offset){
-  if(attrib!==null){
-    context.enableVertexAttribArray(attrib);
-    context.vertexAttribPointer(attrib,size,type,false,stride,offset);
-  }
-}
-Shape._bind=function(context, vertfaces,
-  attribPosition, attribNormal, attribUV,attribColor){
-  context.bindBuffer(context.ARRAY_BUFFER, vertfaces.verts);
-  context.bindBuffer(context.ELEMENT_ARRAY_BUFFER, vertfaces.faces);
-  var format=vertfaces.format;
-  var stride=Mesh.getStride(format);
-  Shape._vertexAttrib(context,attribPosition, 3, context.FLOAT, stride*4, 0);
-  var offset=Mesh.normalOffset(format);
-  if(offset>=0){
-   Shape._vertexAttrib(context,attribNormal, 3,
-    context.FLOAT, stride*4, offset*4);
-  }
-  offset=Mesh.colorOffset(format);
-  if(offset>=0){
-   Shape._vertexAttrib(context,attribColor, 3,
-    context.FLOAT, stride*4, offset*4);
-  }
-  offset=Mesh.texCoordOffset(format);
-  if(offset>=0){
-   Shape._vertexAttrib(context,attribUV, 2,
-    context.FLOAT, stride*4, offset*4);
-  }
-}
