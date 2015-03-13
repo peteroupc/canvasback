@@ -463,6 +463,7 @@ ShaderProgram._compileShaders=function(context, vertexShader, fragmentShader){
     context.shaderSource(shader, text);
     context.compileShader(shader);
     if (!context.getShaderParameter(shader, context.COMPILE_STATUS)) {
+      console.log(text);
 	  	console.log((kind==context.VERTEX_SHADER ? "vertex: " : "fragment: ")+
         context.getShaderInfoLog(shader));
 	  	return null;
@@ -552,17 +553,20 @@ var shader="" +
 "#ifdef SHADING\n" +
 "varying vec4 worldPositionVar;\n" +
 "varying vec3 transformedNormalVar;\n"+
+"const vec4 white=vec4(1.0,1.0,1.0,1.0);\n"+
 "#endif\n" +
 "void main(){\n" +
-" vec4 baseColor;\n" +
+" vec4 baseColor=mix(\n"+
 "#ifdef SHADING\n" +
-" baseColor=vec4(1.0,1.0,1.0,1.0)*(1.0-useTexture);\n" +
+"   white, /*when useTexture is 0*/\n" +
 "#else\n" +
-" baseColor=vec4(md,1.0)*(1.0-useTexture);\n" +
+"   vec4(md,1.0), /*when useTexture is 0*/\n" +
 "#endif\n" +
-" baseColor+=texture2D(sampler,textureUVVar)*useTexture;\n"+
-" baseColor=baseColor*(1.0-useColorAttr) +\n"+
-"  vec4(colorAttrVar,1.0)*useColorAttr;\n" +
+"   texture2D(sampler,textureUVVar), /*when useTexture is 1*/\n"+
+"  useTexture);\n"+
+" baseColor=mix(baseColor, /* when useColorAttr is 0 */\n"+
+"  vec4(colorAttrVar,1.0), /* when useColorAttr is 1 */\n" +
+"  useColorAttr);\n" +
 "#ifdef SHADING\n" +
 "vec3 sdir;\n"+
 "float attenuation;\n"+
@@ -573,7 +577,7 @@ var shader="" +
 " vec3 vertexToLight=vec3(lightPosition-worldPositionVar);\n"+
 " float dist=length(vertexToLight);\n"+
 " sdir=normalize(vertexToLight);\n" +
-" attenuation=1.0/(1.0*dist);\n" +
+" attenuation=1.0;\n" +
 "}\n"+
 "float diffInt=dot(transformedNormalVar,sdir);" +
 "vec3 viewPosition=normalize(vec3(viewInverse*vec4(0,0,0,1)-worldPositionVar));\n" +
@@ -617,7 +621,7 @@ LightSource.pointLight=function(position,ambient,diffuse,specular){
 function MaterialShade(ambient, diffuse, specular,shininess) {
  // NOTE: A solid color is defined by setting ambient
  // and diffuse to the same value
- this.shininess=(shininess==null) ? 1 : Math.min(Math.max(0,shininess),128);
+ this.shininess=(shininess==null) ? 0 : Math.min(Math.max(0,shininess),128);
  this.ambient=ambient||[0.2,0.2,0.2];
  this.diffuse=diffuse||[0.8,0.8,0.8];
  this.specular=specular||[0,0,0];
@@ -936,7 +940,7 @@ Scene3D.prototype.useProgram=function(program){
 }
 Scene3D.prototype.disableLighting=function(){
  this.lightingEnabled=false;
- var program=new ShaderProgram(context,
+ var program=new ShaderProgram(this.context,
    this._getDefines()+ShaderProgram.getDefaultVertex(),
    this._getDefines()+ShaderProgram.getDefaultFragment());
  return this.useProgram(program);
