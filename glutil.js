@@ -17,6 +17,7 @@ renderLoop:function(func){
 },
 get3DOr2DContext:function(canvasElement){
   if(!canvasElement)return null;
+  if(!canvasElement.getContext)return null;
   var context=null;
   var options={antialias:true};
   try { context=canvasElement.getContext("webgl", options);
@@ -533,7 +534,9 @@ return shader;
 };
 ShaderProgram.getDefaultFragment=function(){
 var shader="" +
+"#ifdef GL_ES\n" +
 "precision highp float;\n" +
+"#endif\n" +
  // if shading is disabled, this is solid color instead of material diffuse
  "uniform vec3 md;\n" + // material diffuse color (0-1 each component). Is multiplied by texture/solid color.
 "#ifdef SHADING\n" +
@@ -652,10 +655,8 @@ function Mesh(vertices,faces,format){
  this.startIndex=0;
  this.attributeBits=(format==null) ? 0 : format;
  this.mode=function(m){
-  if(this.builderMode!=m){
-   this.builderMode=m;
-   this.startIndex=this.vertices.length;
-  }
+  this.builderMode=m;
+  this.startIndex=this.vertices.length;
   return this;
  }
  this._rebuildVertices=function(newAttributes){
@@ -752,12 +753,16 @@ function Mesh(vertices,faces,format){
   } else if(this.builderMode==Mesh.QUADS &&
      (this.vertices.length-this.startIndex)%(this.stride*4)==0){
    var index=(this.vertices.length/this.stride)-4;
-   this.tris.push(index,index+1,index+2,index+2,index+3,index);
+   this.tris.push(index,index+1,index+2,index+2,index+1,index+3);
   } else if(this.builderMode==Mesh.TRIANGLES &&
      (this.vertices.length-this.startIndex)%(this.stride*3)==0){
    var index=(this.vertices.length/this.stride)-3;
    this.tris.push(index,index+1,index+2);
-  }
+  } else if(this.builderMode==Mesh.LINES &&
+     (this.vertices.length-this.startIndex)%(this.stride*2)==0){
+   var index=(this.vertices.length/this.stride)-2;
+   this.tris.push(index,index+1);
+  }   
   return this;
  }
 }
@@ -836,8 +841,9 @@ Mesh.NORMALS_BIT = 1;
 Mesh.COLORS_BIT = 2;
 Mesh.TEXCOORDS_BIT = 4;
 Mesh.TRIANGLES = 0;
-Mesh.QUAD_STRIP = 0;
-Mesh.QUADS = 1;
+Mesh.QUAD_STRIP = 1;
+Mesh.QUADS = 2;
+Mesh.LINES = 3;
 
 function BufferedMesh(mesh, context){
  var vertbuffer=context.createBuffer();
