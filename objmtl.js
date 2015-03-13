@@ -120,6 +120,7 @@ MtlData._getMaterial=function(mtl){
  var ambient=null;
  var diffuse=null;
  var specular=null;
+ var emission=null;
  var textureName=null;
  if(mtl.hasOwnProperty("Ns")){
   shininess=mtl["Ns"];
@@ -133,10 +134,15 @@ MtlData._getMaterial=function(mtl){
  if(mtl.hasOwnProperty("Ka")){
   ambient=xyzToRgb(mtl["Ka"]);
  }
+ if(mtl.hasOwnProperty("Ke")){
+  var ke=mtl["Ke"];
+  emission=[ke,ke,ke];
+ }
  if(mtl.hasOwnProperty("Ks")){
   specular=xyzToRgb(mtl["Ks"]);
  }
- var ret=new MaterialShade(ambient,diffuse,specular,shininess);
+ var ret=new MaterialShade(ambient,diffuse,specular,shininess,
+   emission);
  if(textureName){
   ret.textureName=textureName;
  }

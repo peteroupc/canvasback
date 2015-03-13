@@ -546,6 +546,7 @@ var shader="" +
 "uniform vec3 ma;\n" + // material ambient color (-1 to 1 each component).
 "uniform vec3 sd;\n" + // source light diffuse color
 "uniform vec3 ss;\n" + // source light specular color
+"uniform vec3 me;\n" + // material emission color
 "uniform vec3 ms;\n" + // material specular color (0-1 each comp.).  Affects how intense highlights are.
 "uniform float mshin;\n" + // material shininess
 "#endif\n" +
@@ -593,12 +594,16 @@ var shader="" +
 "}\n"+
 " // diffuse\n"+
 " phong+=sd*md*baseColor.rgb*max(0.0,dot(transformedNormalVar,sdir))*attenuation;\n" +
+" // emission\n"+
+" phong+=me;\n" +
 " baseColor=vec4(phong,baseColor.a);\n" +
 "#endif\n" +
 " gl_FragColor=baseColor;\n" +
 "}";
 return shader;
 };
+
+/** Specifies parameters for light sources.*/
 function LightSource(position, ambient, diffuse, specular) {
  this.ambient=ambient || [0,0,0,1.0]
  this.position=position ? [position[0],position[1],position[2],1.0] :[0, 0, 1, 0];
@@ -622,15 +627,15 @@ LightSource.pointLight=function(position,ambient,diffuse,specular){
  return source
 };
 
-
 /** Specifies parameters for geometry materials.*/
-function MaterialShade(ambient, diffuse, specular,shininess) {
+function MaterialShade(ambient, diffuse, specular,shininess,emission) {
  // NOTE: A solid color is defined by setting ambient
  // and diffuse to the same value
  this.shininess=(shininess==null) ? 0 : Math.min(Math.max(0,shininess),128);
  this.ambient=ambient||[0.2,0.2,0.2];
  this.diffuse=diffuse||[0.8,0.8,0.8];
  this.specular=specular||[0,0,0];
+ this.emission=emission||[0,0,0];
 }
 MaterialShade.fromColor=function(r,g,b,a){
  var color=GLUtil["toGLColor"](r,g,b,a);
