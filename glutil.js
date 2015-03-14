@@ -115,8 +115,27 @@ getPromiseResults:function(promises,
 },
 createCube:function(){
  // Position X, Y, Z, normal NX, NY, NZ, texture U, V
- var vertices=[-1.0,-1.0,1.0,1.0,0.0,0.0,1.0,1.0,-1.0,1.0,1.0,1.0,0.0,0.0,1.0,0.0,-1.0,1.0,-1.0,1.0,0.0,0.0,0.0,0.0,-1.0,-1.0,-1.0,1.0,0.0,0.0,0.0,1.0,1.0,-1.0,-1.0,-1.0,0.0,0.0,1.0,1.0,1.0,1.0,-1.0,-1.0,0.0,0.0,1.0,0.0,1.0,1.0,1.0,-1.0,0.0,0.0,0.0,0.0,1.0,-1.0,1.0,-1.0,0.0,0.0,0.0,1.0,1.0,-1.0,-1.0,0.0,1.0,0.0,1.0,1.0,1.0,-1.0,1.0,0.0,1.0,0.0,1.0,0.0,-1.0,-1.0,1.0,0.0,1.0,0.0,0.0,0.0,-1.0,-1.0,-1.0,0.0,1.0,0.0,0.0,1.0,1.0,1.0,1.0,0.0,-1.0,0.0,1.0,1.0,1.0,1.0,-1.0,0.0,-1.0,0.0,1.0,0.0,-1.0,1.0,-1.0,0.0,-1.0,0.0,0.0,0.0,-1.0,1.0,1.0,0.0,-1.0,0.0,0.0,1.0,-1.0,-1.0,-1.0,0.0,0.0,1.0,1.0,1.0,-1.0,1.0,-1.0,0.0,0.0,1.0,1.0,0.0,1.0,1.0,-1.0,0.0,0.0,1.0,0.0,0.0,1.0,-1.0,-1.0,0.0,0.0,1.0,0.0,1.0,1.0,-1.0,1.0,0.0,0.0,-1.0,1.0,1.0,1.0,1.0,1.0,0.0,0.0,-1.0,1.0,0.0,-1.0,1.0,1.0,0.0,0.0,-1.0,0.0,0.0,-1.0,-1.0,1.0,0.0,0.0,-1.0,0.0,1.0]
- var faces=[0,1,2,0,2,3,4,5,6,4,6,7,8,9,10,8,10,11,12,13,14,12,14,15,16,17,18,16,18,19,20,21,22,20,22,23]
+ var vertices=[-1.0,-1.0,1.0,1.0,0.0,0.0,1.0,1.0,
+ -1.0,1.0,1.0,1.0,0.0,0.0,1.0,0.0,
+ -1.0,1.0,-1.0,1.0,0.0,0.0,0.0,0.0,
+ -1.0,-1.0,-1.0,1.0,0.0,0.0,0.0,1.0,
+ 1.0,-1.0,-1.0,-1.0,0.0,0.0,1.0,1.0,
+ 1.0,1.0,-1.0,-1.0,0.0,0.0,1.0,0.0,
+ 1.0,1.0,1.0,-1.0,0.0,0.0,0.0,0.0,
+ 1.0,-1.0,1.0,-1.0,0.0,0.0,0.0,1.0,
+ 1.0,-1.0,-1.0,0.0,1.0,0.0,1.0,1.0,
+ 1.0,-1.0,1.0,0.0,1.0,0.0,1.0,0.0,
+ -1.0,-1.0,1.0,0.0,1.0,0.0,0.0,0.0,
+ -1.0,-1.0,-1.0,0.0,1.0,0.0,0.0,1.0,
+ 1.0,1.0,1.0,0.0,-1.0,0.0,1.0,1.0,
+ 1.0,1.0,-1.0,0.0,-1.0,0.0,1.0,0.0,
+ -1.0,1.0,-1.0,0.0,-1.0,0.0,0.0,0.0,
+ -1.0,1.0,1.0,0.0,-1.0,0.0,0.0,1.0,
+ -1.0,-1.0,-1.0,0.0,0.0,1.0,1.0,1.0,
+ -1.0,1.0,-1.0,0.0,0.0,1.0,1.0,0.0,
+ 1.0,1.0,-1.0,0.0,0.0,1.0,0.0,0.0,1.0,-1.0,-1.0,0.0,0.0,1.0,0.0,1.0,1.0,-1.0,1.0,0.0,0.0,-1.0,1.0,1.0,1.0,1.0,1.0,0.0,0.0,-1.0,1.0,0.0,-1.0,1.0,1.0,0.0,0.0,-1.0,0.0,0.0,-1.0,-1.0,1.0,0.0,0.0,-1.0,0.0,1.0]
+ var faces=[0,1,2,0,2,3,4,5,6,4,6,7,8,9,10,8,10,11,12,
+ 13,14,12,14,15,16,17,18,16,18,19,20,21,22,20,22,23]
  return new Mesh(vertices,faces,Mesh.NORMALS_BIT | Mesh.TEXCOORDS_BIT);
 },
 createSphere:function(radius,div){
@@ -382,6 +401,23 @@ if(!namedColors){
 };
 })(GLUtil);
 
+/**
+* Represents a WebGL shader program.  A shader program in
+* WebGL consists of a vertex shader (which processes vertices),
+* and a fragment shader (which processes pixels).  Shader programs
+* are specially designed for running on a graphics processing unit,
+* or GPU.
+* If compiling or linking the shader program fails, a diagnostic
+* log is output to the JavaScript console.
+*
+* @param {WebGLRenderingContext} A WebGL context associated with the
+* compiled shader program.
+* @param {String|undefined} Source text of a vertex shader, in OpenGL
+* Shading Language (GLSL).  If null, a default
+* vertex shader is used instead.
+* @param {String|undefined} Source text of a fragment shader in GLSL.
+* If null, a default fragment shader is used instead.
+*/
 var ShaderProgram=function(context, vertexShader, fragmentShader){
  if(vertexShader==null){
   vertexShader=ShaderProgram.getDefaultVertex();
@@ -422,17 +458,43 @@ var ShaderProgram=function(context, vertexShader, fragmentShader){
   this.actives=ret;
  }
 }
+/** Gets the WebGL context associated with this shader program. */
 ShaderProgram.prototype.getContext=function(){
  return this.context;
 }
+/**
+* Gets the location of the given uniform's name in this program.
+* Note that the location may change each time the shader program
+* is linked (which, in the case of ShaderProgram, currently only
+* happens upon construction).
+* @return The location of the uniform name, or null if it doesn't exist.
+*/
 ShaderProgram.prototype.get=function(name){
  return (!this.actives.hasOwnProperty(name)) ?
    null : this.actives[name];
 }
+/**
+* Makes this program the active program for the WebGL context.
+* @return {ShaderProgram} this object.
+*/
 ShaderProgram.prototype.use=function(){
  this.context.useProgram(this.program);
  return this;
 }
+/**
+*  Sets uniform variables for this program.  This method assumes
+*  that this object's program is currently active.  Uniform variables
+* are called uniform because they uniformly apply to all vertices
+* in a primitive, and are not different per vertex.
+* @param {Object} A hash of key/value pairs.  Each key is
+* the name of a uniform, and each value is the value to set
+* to that uniform.  Uniform values that are 3- or 4-element
+* vectors must be 3 or 4 elements long, respectively.  Uniforms
+* that are 4x4 matrices must by 16 elements long.  Keys to
+* uniforms that don't exist in this program are ignored.  Keys
+* where hasOwnProperty is false are also ignored.
+* @return {ShaderProgram} this object.
+*/
 ShaderProgram.prototype.setUniforms=function(uniforms){
   for(var i in uniforms){
     if(uniforms.hasOwnProperty(i)){
@@ -494,16 +556,6 @@ ShaderProgram._compileShaders=function(context, vertexShader, fragmentShader){
   if(fs!==null)context.deleteShader(fs);
   return program;
 };
-ShaderProgram.prototype.setLightSource=function(light){
- if(!light)return this;
- this.setUniforms({
- "sa":[light.ambient[0],light.ambient[1],light.ambient[2]],
- "lightPosition":light.position,
- "sd":light.diffuse,
- "ss":light.specular
- });
- return this;
-}
 ShaderProgram.getDefaultVertex=function(){
 var shader="" +
 "attribute vec3 position;\n" +
@@ -543,9 +595,9 @@ var shader="" +
 "uniform mat4 viewInverse; /* internal */\n" +
 "uniform vec4 lightPosition;\n" + // source light direction
 "uniform vec3 sa;\n" + // source light ambient color
-"uniform vec3 ma;\n" + // material ambient color (-1 to 1 each component).
 "uniform vec3 sd;\n" + // source light diffuse color
 "uniform vec3 ss;\n" + // source light specular color
+"uniform vec3 ma;\n" + // material ambient color (-1 to 1 each component).
 "uniform vec3 me;\n" + // material emission color
 "uniform vec3 ms;\n" + // material specular color (0-1 each comp.).  Affects how intense highlights are.
 "uniform float mshin;\n" + // material shininess
@@ -624,10 +676,51 @@ LightSource.pointLight=function(position,ambient,diffuse,specular){
  source.position=position ? [position[0],position[1],position[2],1.0] : [0,0,0,0];
  source.diffuse=diffuse||[1,1,1];
  source.specular=specular||[1,1,1];
- return source
+ return source;
 };
+LightSource.prototype.bind=function(program){
+ if(!program)return this;
+ program.setUniforms({
+ "sa":[this.ambient[0],this.ambient[1],this.ambient[2]],
+ "lightPosition":this.position,
+ "sd":this.diffuse,
+ "ss":this.specular
+ });
+ return this;
+}
 
-/** Specifies parameters for geometry materials.*/
+/**
+* Specifies parameters for geometry materials, particularly, how an
+* object reflects or absorbs light.
+* @param {Array<Number>} ambient Ambient reflection.  An array of three numbers
+* indicating how much an object reflects ambient lights (lights that shine
+* on all objects equally in all directions) in the red, green,
+* and blue components respectively.  Each component ranges from 0 to 1.
+* May be omitted; default is (0.2, 0.2, 0.2).
+* @param {Array<Number>} diffuse Diffuse reflection.  An array of three numbers
+* indicating how much an object reflects diffuse lights (lights that point
+* in a certain direction) in the red, green,
+* and blue components respectively.  Each component ranges from 0 to 1.
+* Setting ambient and diffuse to the same value usually defines an object's
+* color.  If Scene3D.disableLighting() is called, disabling lighting calculations,
+* this value is used for coloring objects.
+* May be omitted; default is (0.8, 0.8, 0.8).
+* @param {Array<Number>} specular Color of specular highlights on an
+* object.  An array of three numbers indicating the red, green, and blue
+* components.
+* Each component ranges from 0 to 1.
+* May be omitted; default is (0,0,0).
+* @param {Array<Number>} shininess Indicates how sharp the specular
+* highlights are.  0 means the object creates no specular highlights. Ranges
+* from 0 through 128.
+* May be omitted; default is 0.
+* @param {Array<Number>} emission Additive color emitted by an object.
+* Used for objects that glow on their own, among other things. An array of
+* three numbers indicating the red, green, and blue components.
+* Each component ranges from -1 to 1. Positive values add to each component,
+* while negative values subtract from each component.
+* May be omitted; default is (0,0,0).
+*/
 function MaterialShade(ambient, diffuse, specular,shininess,emission) {
  // NOTE: A solid color is defined by setting ambient
  // and diffuse to the same value
@@ -637,6 +730,26 @@ function MaterialShade(ambient, diffuse, specular,shininess,emission) {
  this.specular=specular||[0,0,0];
  this.emission=emission||[0,0,0];
 }
+/** Clones the parameters to a new MaterialShade
+ object and returns that object. */
+MaterialShade.prototype.copy=function(){
+ return new MaterialShade(
+  this.ambient.slice(0,this.ambient.length),
+  this.diffuse.slice(0,this.diffuse.length),
+  this.specular.slice(0,this.specular.length),
+  this.shininess,
+  this.emission.slice(0,this.emission.length)
+ )
+}
+/** Convenience method that returns a MaterialShader
+ * object from an RGBA color.
+* @param {Array<Number>|Number|String} Array of three or
+* four color components; or the red color component (0-1); or a string
+* specifying an HTML or CSS color.
+* @param {Number} Green color component (0-1).
+* @param {Number} Blue color component (0-1).
+* @param {Number} Alpha color component (0-1).
+ */
 MaterialShade.fromColor=function(r,g,b,a){
  var color=GLUtil["toGLColor"](r,g,b,a);
  return new MaterialShade(color,color);
@@ -647,13 +760,24 @@ MaterialShade.prototype.bind=function(program){
  "mshin":this.shininess,
  "ma":[this.ambient[0], this.ambient[1], this.ambient[2]],
  "md":[this.diffuse[0], this.diffuse[1], this.diffuse[2]],
- "ms":this.specular
+ "ms":[this.specular[0],this.specular[1],this.specular[2]],
+ "me":[this.emission[0],this.emission[1],this.emission[2]]
  });
 }
 
-
-
-/** Specifies the triangles or lines that make up a geometric shape.*/
+/**
+*
+* Specifies the triangles or lines that make up a geometric shape.
+* @param {Array<Number>} An array that contains data on each vertex of the mesh.
+* Each vertex is made up of the same number of elements, as defined in
+* format.
+* @param {Array<Number>} An array of vertex indices.
+* @param {Number} A set of bit flags depending on the kind of data
+* each vertex contains.  Each vertex contains 3 elements plus:
+*  - 3 more elements if Mesh.NORMALS_BIT is set, plus
+*  - 3 more elements if Mesh.COLORS_BIT is set, plus
+*  - 2 more elements if Mesh.TEXCOORDS_BIT is set.
+*/
 function Mesh(vertices,faces,format){
  this.vertices=vertices||[];
  this.tris=faces||[];
@@ -726,6 +850,15 @@ function Mesh(vertices,faces,format){
   this.vertices=newVertices;
   this.attributeBits=newBits;
  }
+ /**
+  * Sets the current normal for this mesh.  The next vertex position
+  * defined will have this normal.  If necessary, rebuilds the mesh
+  * to accommodate normals.
+  * @param {Number} X-coordinate of the normal.
+  * @param {Number} Y-coordinate of the normal.
+  * @param {Number} Z-coordinate of the normal.
+  * @return {Mesh} This object.
+  */
  this.normal3=function(x,y,z){
   this.normal[0]=x;
   this.normal[1]=y;
@@ -733,6 +866,15 @@ function Mesh(vertices,faces,format){
   this._rebuildVertices(Mesh.NORMALS_BIT);
   return this;
  }
+ /**
+  * Sets the current color for this mesh.  The next vertex position
+  * defined will have this color.  If necessary, rebuilds the mesh
+  * to accommodate colors.
+  * @param {Number} Red component of the color.
+  * @param {Number} Green component of the color.
+  * @param {Number} Blue component of the color.
+  * @return {Mesh} This object.
+  */
  this.color3=function(x,y,z){
   this.color[0]=x;
   this.color[1]=y;
@@ -740,12 +882,28 @@ function Mesh(vertices,faces,format){
   this._rebuildVertices(Mesh.COLORS_BIT);
   return this;
  }
+ /**
+  * Sets the current texture coordinates for this mesh.  The next vertex position
+  * defined will have these texture coordinates.  If necessary, rebuilds the mesh
+  * to accommodate texture coordinates.
+  * @param {Number} X-coordinate of the texture, from 0-1.
+  * @param {Number} Y-coordinate of the texture, from 0-1.
+  * @return {Mesh} This object.
+  */
  this.texCoord2=function(u,v){
   this.texCoord[0]=u;
   this.texCoord[1]=v;
   this._rebuildVertices(Mesh.TEXCOORDS_BIT);
   return this;
  }
+ /**
+  * Adds a new vertex to this mesh.  If appropriate, adds an
+  * additional face index according to this mesh's current mode.
+  * @param {Number} X-coordinate of the vertex.
+  * @param {Number} Y-coordinate of the vertex.
+  * @param {Number} Z-coordinate of the vertex.
+  * @return {Mesh} This object.
+  */
  this.vertex3=function(x,y,z){
   this.vertices.push(x,y,z);
   if((this.attributeBits&Mesh.COLORS_BIT)!=0){
@@ -774,7 +932,7 @@ function Mesh(vertices,faces,format){
      (this.vertices.length-this.startIndex)%(this.stride*2)==0){
    var index=(this.vertices.length/this.stride)-2;
    this.tris.push(index,index+1);
-  }   
+  }
   return this;
  }
 }
@@ -894,6 +1052,9 @@ BufferedMesh._vertexAttrib=function(context, attrib, size, type, stride, offset)
     context.vertexAttribPointer(attrib,size,type,false,stride,offset);
   }
 }
+/**
+* Deletes the vertex and index buffers associated with this object.
+*/
 BufferedMesh.prototype.unload=function(){
  if(this.verts!=null)
   this.context.deleteBuffer(this.verts);
@@ -902,6 +1063,13 @@ BufferedMesh.prototype.unload=function(){
  this.verts=null;
  this.faces=null;
 }
+/**
+* Binds the buffers in this object to attributes according
+* to their data format.
+* @param {ShaderProgram} A shader program object to get
+* the IDs from for uniforms named "position", "normal",
+* "colorAttr", and "textureUV".
+*/
 BufferedMesh.prototype.bind=function(program){
   var context=program.getContext();
   if(this.verts==null || this.faces==null){
@@ -935,7 +1103,6 @@ BufferedMesh.prototype.bind=function(program){
     context.FLOAT, stride*4, offset*4);
   }
 }
-
 
 var Texture=function(name){
  this.textureImage=null;
@@ -992,15 +1159,8 @@ Texture.prototype.bind=function(program){
   this.textureImage.loadImage();
  }
  if(this.material){
-   program.setUniforms({
-  "useTexture":1.0,
-  "mshin":this.material.shininess,
-  "ma":[this.material.ambient[0],
-    this.material.ambient[1], this.material.ambient[2]],
-  "md":[this.material.diffuse[0],
-    this.material.diffuse[1], this.material.diffuse[2]],
-  "ms":this.material.specular
-  });
+   this.material.bind(program);
+   program.setUniforms({"useTexture":1.0});
  }
 }
 
@@ -1096,6 +1256,21 @@ TextureImage.prototype.bind=function(program){
 }
 ////////////////////////////////////////
 
+/**
+ * A holder object representing a 3D scene.  This object includes
+ * information, among other things, on:<ul>
+ *<li> A projection matrix, for setting the camera projection.</li>
+ *<li> A view matrix, for setting the camera's view and position.</li>
+ *<li> One light source (currently).</li>
+ *<li> A texture cache.</li>
+ *<li> A screen-clearing background color.</li>
+ *</ul>
+ * When a Scene3D object is created, it compiles and loads
+ * a default shader program that enables lighting parameters,
+ * and sets the projection and view matrices to identity.
+ * @param {WebGLRenderingContext} A WebGL 3D context to associate
+ * with this scene.
+ */
 function Scene3D(context){
  this.context=context;
  this.context.viewport(0,0,
@@ -1130,12 +1305,19 @@ Scene3D.prototype._getDefines=function(){
   ret+="#define SHADING\n"
  return ret;
 }
+/** Returns the WebGL context associated with this scene. */
+Scene3D.prototype.getContext=function(){
+ return this.context;
+}
 Scene3D.prototype._initProgramData=function(){
   this.program.setUniforms({"sampler":0});
-  this.program.setLightSource(this.lightSource);
+  this.lightSource.bind(this.program);
   // update matrix-related uniforms later
   this._matrixDirty=true;
 }
+/** Changes the active shader program for this scene
+* and prepares this object for the new program.
+*/
 Scene3D.prototype.useProgram=function(program){
  if(!program)throw new Error("invalid program");
  program.use();
@@ -1143,6 +1325,9 @@ Scene3D.prototype.useProgram=function(program){
  this._initProgramData();
  return this;
 }
+/** Changes the active shader program for this scene
+* to a program that doesn't support lighting.
+*/
 Scene3D.prototype.disableLighting=function(){
  this.lightingEnabled=false;
  var program=new ShaderProgram(this.context,
@@ -1150,15 +1335,31 @@ Scene3D.prototype.disableLighting=function(){
    this._getDefines()+ShaderProgram.getDefaultFragment());
  return this.useProgram(program);
 }
+/** Gets the viewport width for this scene.*/
 Scene3D.prototype.getWidth=function(){
  return this.context.canvas.width*1.0;
 }
+/** Gets the viewport height for this scene.*/
 Scene3D.prototype.getHeight=function(){
  return this.context.canvas.height*1.0;
 }
+/** Gets the ratio of width to height for this scene.*/
 Scene3D.prototype.getAspect=function(){
  return this.getWidth()/this.getHeight();
 }
+/**
+*  Sets this scene's projection matrix to a perspective view.
+* @param {Number}  Y-axis field of view, in degrees.  (Zoom can
+* be implemented by multiplying field of view by an additional
+* factor.)
+* @param {Number}  The aspect ratio of the viewport, usually
+*  the scene's aspect ratio (getAspect()).
+* @param {Number} The distance from the camera to
+* the near clipping plane. This should be slightly greater than 0.
+* @param {Number}  The distance from the camera to
+* the far clipping plane.
+* @return {Scene3D} this object.
+*/
 Scene3D.prototype.setPerspective=function(fov, aspect, near, far){
  return this.setProjectionMatrix(GLMath.mat4perspective(fov,
    aspect,near,far));
@@ -1177,16 +1378,39 @@ Scene3D.prototype._setClearColor=function(){
   return this;
 }
 
+/**
+* Sets the color used when clearing the screen each frame.
+* @param {Array<Number>|Number|String} Array of three or
+* four color components; or the red color component (0-1); or a string
+* specifying an HTML or CSS color.
+* @param {Number} Green color component (0-1).
+* @param {Number} Blue color component (0-1).
+* @param {Number} Alpha color component (0-1).
+*/
 Scene3D.prototype.setClearColor=function(r,g,b,a){
  this.clearColor=GLUtil["toGLColor"](r,g,b,a);
  return this._setClearColor();
 }
+/**
+* Loads a texture from an image URL.
+* @param {String} URL of the image to load.
+* @return {Promise} A promise that is resolved when
+* the image is loaded successfully (the result will be a Texture
+* object), and is rejected when an error occurs.
+*/
 Scene3D.prototype.loadTexture=function(name){
- // Returns a promise with a Texture object result if it resolves
  return Texture.loadTexture(name, this.textureCache);
 }
+/**
+* Loads a texture from an image URL and uploads it
+* to a texture buffer object.
+* @param {String} URL of the image to load.
+* @return {Promise} A promise that is resolved when
+* the image is loaded successfully and uploaded
+* to a texture buffer (the result will be a Texture
+* object), and is rejected when an error occurs.
+*/
 Scene3D.prototype.loadAndMapTexture=function(name){
- // Returns a promise with a Texture object result if it resolves
  return Texture.loadAndMapTexture(
    name, this.context, this.textureCache);
 }
@@ -1217,24 +1441,44 @@ Scene3D.prototype.setProjectionMatrix=function(matrix){
  this._matrixDirty=true;
  return this;
 }
+/**
+*  Sets this scene's view matrix.
+* @param {Array<number>} A 16-element matrix.
+*/
 Scene3D.prototype.setViewMatrix=function(matrix){
  this._viewMatrix=GLMath.mat4copy(matrix);
  this._matrixDirty=true;
  return this;
 }
+/**
+*  Sets this scene's view matrix to represent a camera view.
+* @param {Array<number>} A 3-element vector specifying
+* the camera position.
+* @param {Array<number>} A 3-element vector specifying
+* the point the camera is looking at.
+* @param {Array<number>} A 3-element vector specifying
+* the up-vector direction.  May be omitted, in which case
+* the default is a vector pointing positive on the Y axis.  This
+* vector must not point in the same direction as the camera's
+* line of sight.
+* @return {Scene3D} this object.
+*/
 Scene3D.prototype.setLookAt=function(eye, center, up){
  up = up || [0,1,0];
  this._viewMatrix=GLMath.mat4lookat(eye, center, up);
  this._matrixDirty=true;
  return this;
 }
+/**
+* Adds a 3D shape to this scene.
+*/
 Scene3D.prototype.addShape=function(shape){
  this.shapes.push(shape.loadMesh(this.context));
  return this;
 }
 Scene3D.prototype.setLightSource=function(light){
  this.lightSource=light;
- this.program.setLightSource(this.lightSource);
+ if(light)this.lightSource.bind(this.program);
  return this;
 }
 Scene3D.prototype.render=function(){
@@ -1246,11 +1490,12 @@ Scene3D.prototype.render=function(){
   this.context.flush();
 }
 
-
-
+/** A shape object that gathers multiple shapes
+ and treats them as one bigger shape.*/
 function MultiShape(){
  this.shapes=[];
 }
+/** Sets the scaling for each individual shape. */
 MultiShape.prototype.setScale=function(scale){
  for(var i=0;i<this.shapes.length;i++){
   this.shapes[i].setScale(scale);
@@ -1271,6 +1516,8 @@ MultiShape.prototype.add=function(shape){
  this.shapes.push(shape);
 }
 
+/** An object that associates a geometric mesh with
+  material data and other drawing parameters. */
 function Shape(mesh){
   if(mesh==null)throw new Error("mesh is null");
   this.mesh=mesh;
@@ -1305,11 +1552,22 @@ Shape.prototype.setMatrix=function(value){
 Shape.prototype.getDrawLines=function(){
  return this.drawLines;
 }
+/**
+* Sets material parameters that give the shape a certain color.
+* @param {Array<Number>|Number|String} Array of three or
+* four color components; or the red color component; or a string
+* specifying an HTML or CSS color.
+* @param {Number} Green color component.
+* @param {Number} Blue color component.
+* @param {Number} Alpha color component.
+*/
 Shape.prototype.setColor=function(r,g,b,a){
- var color=GLUtil["toGLColor"](r,g,b,a);
- this.material=MaterialShade.fromColor(color);
+ this.material=MaterialShade.fromColor(r,g,b,a);
  return this;
 }
+/** Sets this shape's material parameters.
+* @param {MaterialShade}
+*/
 Shape.prototype.setMaterial=function(material){
  this.material=material;
  return this;
