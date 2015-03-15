@@ -606,8 +606,9 @@ var shader="" +
 "#endif\n" +
 "};\n" +
 "uniform mat4 viewInverse; /* internal */\n" +
+"const int MAX_LIGHTS = "+Lights.MAX_LIGHTS+"; /* internal */\n" +
 "uniform vec3 sceneAmbient;\n" +
-"uniform light lights[3];\n" +
+"uniform light lights[MAX_LIGHTS];\n" +
 "uniform vec3 ma;\n" + // material ambient color (-1 to 1 each component).
 "uniform vec3 me;\n" + // material emission color
 "#ifdef SPECULAR\n" +
@@ -652,38 +653,36 @@ var shader="" +
 "  vec4(colorAttrVar,1.0), /* when useColorAttr is 1 */\n" +
 "  useColorAttr);\n" +
 "#ifdef SHADING\n" +
-"vec4 lightPower[3];\n"+
-"lightPower[0]=calcLightPower(lights[0],worldPositionVar);\n"+
-"lightPower[1]=calcLightPower(lights[1],worldPositionVar);\n"+
-"lightPower[2]=calcLightPower(lights[2],worldPositionVar);\n"+
-"vec3 viewPosition=normalize(vec3(viewInverse*vec4(0,0,0,1)-worldPositionVar));\n" +
+"#define SET_LIGHTPOWER(i) "+
+" lightPower[i]=calcLightPower(lights[i],worldPositionVar)\n" +
+"#define ADD_DIFFUSE(i) "+
+" phong+=lights[i].diffuse*max(0.0,dot(transformedNormalVar," +
+"   lightPower[i].xyz))*lightPower[i].w*materialDiffuse;\n" +
+"vec4 lightPower["+Lights.MAX_LIGHTS+"];\n";
+for(var i=0;i<Lights.MAX_LIGHTS;i++){
+ shader+="SET_LIGHTPOWER("+i+");\n";
+}
+shader+="vec3 viewPosition=normalize(vec3(viewInverse*vec4(0,0,0,1)-worldPositionVar));\n" +
 "vec3 phong=sceneAmbient*ma; /* ambient*/\n" +
 "#ifdef SPECULAR\n" +
 "// specular reflection\n" +
 "vec3 specular=vec3(0,0,0.);\n" +
-"if(dot(transformedNormalVar,lightPower[0].xyz)>=0.0){\n" +
-"   specular+=pow(max(dot(reflect(-lightPower[0].xyz,transformedNormalVar)," +
-"      viewPosition),0.0),mshin)*lights[0].specular*lightPower[0].w;\n" +
-"}\n" +
-"if(dot(transformedNormalVar,lightPower[1].xyz)>=0.0){\n" +
-"   specular+=pow(max(dot(reflect(-lightPower[1].xyz,transformedNormalVar)," +
-"      viewPosition),0.0),mshin)*lights[1].specular*lightPower[1].w;\n" +
-"}\n" +
-"if(dot(transformedNormalVar,lightPower[2].xyz)>=0.0){\n" +
-"   specular+=pow(max(dot(reflect(-lightPower[2].xyz,transformedNormalVar)," +
-"      viewPosition),0.0),mshin)*lights[2].specular*lightPower[2].w;\n" +
-"}\n"+
-" phong+=(ms*specular);\n" +
+"#define ADD_SPECULAR(i) "+
+"  if(dot(transformedNormalVar,lightPower[i].xyz)>=0.0){" +
+"   specular+=pow(max(dot(reflect(-lightPower[i].xyz,transformedNormalVar)," +
+"      viewPosition),0.0),mshin)*lights[i].specular*lightPower[i].w;" +
+"  }\n";
+for(var i=0;i<Lights.MAX_LIGHTS;i++){
+ shader+="ADD_SPECULAR("+i+");\n";
+}
+shader+=" phong+=(ms*specular);\n" +
 "#endif\n" +
 " // diffuse\n"+
-" vec3 materialDiffuse=md*baseColor.rgb;\n"+
-" phong+=lights[0].diffuse*max(0.0,dot(transformedNormalVar," +
-"   lightPower[0].xyz))*lightPower[0].w*materialDiffuse;\n" +
-" phong+=lights[1].diffuse*max(0.0,dot(transformedNormalVar," +
-"   lightPower[1].xyz))*lightPower[1].w*materialDiffuse;\n" +
-" phong+=lights[2].diffuse*max(0.0,dot(transformedNormalVar," +
-"   lightPower[2].xyz))*lightPower[2].w*materialDiffuse;\n" +
-" // emission\n"+
+" vec3 materialDiffuse=md*baseColor.rgb;\n";
+for(var i=0;i<Lights.MAX_LIGHTS;i++){
+ shader+="ADD_DIFFUSE("+i+");\n";
+}
+shader+=" // emission\n"+
 " phong+=me;\n" +
 " baseColor=vec4(phong,baseColor.a);\n" +
 "#endif\n" +
@@ -704,6 +703,7 @@ function Lights(){
  this.lights=[new LightSource()];
  this.sceneAmbient=[0.2,0.2,0.2];
 }
+Lights.MAX_LIGHTS = 3;
 Lights._createLight=function(index, position, diffuse, specular,directional){
  var lightPosition=position ? [position[0],position[1],position[2],
    directional ? 0.0 : 1.0] : (directional ? [0,0,1,0] : [0,0,0,1]);
@@ -742,7 +742,7 @@ Lights.prototype.bind=function(program){
   uniforms["lights["+i+"].specular"]=this.lights[i].specular;
   uniforms["lights["+i+"].position"]=this.lights[i].position;
  }
- for(var i=this.lights.length;i<3;i++){
+ for(var i=this.lights.length;i<Lights.MAX_LIGHTS;i++){
   uniforms["lights["+i+"].diffuse"]=[0,0,0];
   uniforms["lights["+i+"].specular"]=[0,0,0];
   uniforms["lights["+i+"].position"]=[0,0,0,0];
@@ -844,10 +844,162 @@ MaterialShade.prototype.bind=function(program){
 *  - 2 more elements if Mesh.TEXCOORDS_BIT is set.
 */
 function Mesh(vertices,faces,format){
+ this.subMeshes=[
+  new SubMesh(vertices,faces,format)
+ ];
+ this.builderMode=-1;
+}
+Mesh.constructor._primitiveType=function(mode){
+ if(mode==Mesh.LINES)
+  return Mesh.LINES;
+ else
+  return Mesh.TRIANGLES;
+}
+Mesh._isCompatibleMode=function(oldMode,newMode){
+ if(oldMode==newMode)return true;
+ if(Mesh._primitiveType(oldMode)==Mesh._primitiveType(newMode))
+   return true;
+ return false;
+}
+Mesh._recalcNormals=function(vertices,faces,stride,offset){
+  for(var i=0;i<vertices.length;i+=stride){
+    vertices[i+offset]=0.0
+    vertices[i+offset+1]=0.0
+    vertices[i+offset+2]=0.0
+  }
+  for(var i=0;i<faces.length;i+=3){
+    var v1=faces[i]*stride
+    var v2=faces[i+1]*stride
+    var v3=faces[i+2]*stride
+    var n1=[vertices[v2]-vertices[v3],vertices[v2+1]-vertices[v3+1],vertices[v2+2]-vertices[v3+2]]
+    var n2=[vertices[v1]-vertices[v3],vertices[v1+1]-vertices[v3+1],vertices[v1+2]-vertices[v3+2]]
+    // cross multiply n1 and n2
+    var x=n1[1]*n2[2]-n1[2]*n2[1]
+    var y=n1[2]*n2[0]-n1[0]*n2[2]
+    var z=n1[0]*n2[1]-n1[1]*n2[0]
+    // normalize xyz vector
+    len=Math.sqrt(x*x+y*y+z*z);
+    if(len!=0){
+      len=1.0/len;
+      x*=len;
+      y*=len;
+      z*=len;
+      // add normalized normal to each vertex of the face
+      vertices[v1+offset]+=x
+      vertices[v1+offset+1]+=y
+      vertices[v1+offset+2]+=z
+      vertices[v2+offset]+=x
+      vertices[v2+offset+1]+=y
+      vertices[v2+offset+2]+=z
+      vertices[v3+offset]+=x
+      vertices[v3+offset+1]+=y
+      vertices[v3+offset+2]+=z
+    }
+  }
+  // Normalize each normal of the vertex
+  for(var i=0;i<vertices.length;i+=stride){
+    var x=vertices[i+offset];
+    var y=vertices[i+offset+1];
+    var z=vertices[i+offset+2];
+    len=Math.sqrt(x*x+y*y+z*z);
+    if(len){
+      len=1.0/len;
+      vertices[i+offset]=x*len;
+      vertices[i+offset+1]=y*len;
+      vertices[i+offset+2]=z*len;
+    }
+  }
+}
+ this.getAttributeBits=function(){
+  // It is assumed that each sub-mesh has the same
+  // attribute bits
+  return this.subMeshes[0].attributeBits;
+ }
+ this.mode=function(m){
+  if(this.subMeshes.length>0 &&
+    !Mesh._isCompatibleMode(this.builderMode,m)){
+   this.subMeshes.push(new SubMesh().mode(m));
+  } else {
+   this.subMeshes[this.subMeshes.length-1].mode(m);
+  }
+  return this;
+ }
+ /**
+  * Sets the current normal for this mesh.  The next vertex position
+  * defined will have this normal.  If necessary, rebuilds the mesh
+  * to accommodate normals.
+  * @param {Number} X-coordinate of the normal.
+  * @param {Number} Y-coordinate of the normal.
+  * @param {Number} Z-coordinate of the normal.
+  * @return {Mesh} This object.
+  */
+ Mesh.prototype.normal3=function(x,y,z){
+  for(var i=0;i<this.subMeshes.length;i++){
+   this.subMeshes[i].normal3(x,y,z);
+  }
+  return this;
+ }
+ /**
+  * Sets the current color for this mesh.  The next vertex position
+  * defined will have this color.  If necessary, rebuilds the mesh
+  * to accommodate colors.
+  * @param {Number} Red component of the color.
+  * @param {Number} Green component of the color.
+  * @param {Number} Blue component of the color.
+  * @return {Mesh} This object.
+  */
+ Mesh.prototype.color3=function(x,y,z){
+  for(var i=0;i<this.subMeshes.length;i++){
+   this.subMeshes[i].color3(x,y,z);
+  }
+  return this;
+ }
+ /**
+  * Sets the current texture coordinates for this mesh.  The next vertex position
+  * defined will have these texture coordinates.  If necessary, rebuilds the mesh
+  * to accommodate texture coordinates.
+  * @param {Number} X-coordinate of the texture, from 0-1.
+  * @param {Number} Y-coordinate of the texture, from 0-1.
+  * @return {Mesh} This object.
+  */
+ Mesh.prototype.texCoord3=function(x,y,z){
+  for(var i=0;i<this.subMeshes.length;i++){
+   this.subMeshes[i].texCoord3(x,y,z);
+  }
+  return this;
+ }
+ /**
+  * Adds a new vertex to this mesh.  If appropriate, adds an
+  * additional face index according to this mesh's current mode.
+  * @param {Number} X-coordinate of the vertex.
+  * @param {Number} Y-coordinate of the vertex.
+  * @param {Number} Z-coordinate of the vertex.
+  * @return {Mesh} This object.
+  */
+ Mesh.prototype.vertex3=function(x,y,z){
+  this.subMeshes[this.subMeshes.length-1].vertex3(x,y,z);
+  return this;
+ }
+ Mesh.prototype.recalcNormals=function(){
+  for(var i=0;i<this.subMeshes.length;i++){
+   this.subMeshes[i].recalcNormals();
+  }
+  return this;
+ }
+ Mesh.prototype.toWireFrame=function(){
+  var mesh=new Mesh();
+  for(var i=0;i<this.subMeshes.length;i++){
+   mesh.push(this.subMeshes[i].toWireFrame());
+  }
+  return mesh;
+ }
+
+function SubMesh(vertices,faces,format){
  this.vertices=vertices||[];
  this.tris=faces||[];
  this.stride=3;
- this.builderMode=Mesh.TRIANGLES;
+ this.builderMode=-1;
+ this.primitiveType=-1;
  this.normal=[0,0,0];
  this.bounds=null;
  this.color=[0,0,0];
@@ -857,6 +1009,7 @@ function Mesh(vertices,faces,format){
  this.attributeBits=(format==null) ? 0 : format;
  this.mode=function(m){
   this.builderMode=m;
+  this.primitiveType=Mesh._primitiveType(m);
   this.startIndex=this.vertices.length;
   return this;
  }
@@ -917,15 +1070,6 @@ function Mesh(vertices,faces,format){
   this.vertices=newVertices;
   this.attributeBits=newBits;
  }
- /**
-  * Sets the current normal for this mesh.  The next vertex position
-  * defined will have this normal.  If necessary, rebuilds the mesh
-  * to accommodate normals.
-  * @param {Number} X-coordinate of the normal.
-  * @param {Number} Y-coordinate of the normal.
-  * @param {Number} Z-coordinate of the normal.
-  * @return {Mesh} This object.
-  */
  this.normal3=function(x,y,z){
   this.normal[0]=x;
   this.normal[1]=y;
@@ -933,15 +1077,6 @@ function Mesh(vertices,faces,format){
   this._rebuildVertices(Mesh.NORMALS_BIT);
   return this;
  }
- /**
-  * Sets the current color for this mesh.  The next vertex position
-  * defined will have this color.  If necessary, rebuilds the mesh
-  * to accommodate colors.
-  * @param {Number} Red component of the color.
-  * @param {Number} Green component of the color.
-  * @param {Number} Blue component of the color.
-  * @return {Mesh} This object.
-  */
  this.color3=function(x,y,z){
   this.color[0]=x;
   this.color[1]=y;
@@ -949,29 +1084,14 @@ function Mesh(vertices,faces,format){
   this._rebuildVertices(Mesh.COLORS_BIT);
   return this;
  }
- /**
-  * Sets the current texture coordinates for this mesh.  The next vertex position
-  * defined will have these texture coordinates.  If necessary, rebuilds the mesh
-  * to accommodate texture coordinates.
-  * @param {Number} X-coordinate of the texture, from 0-1.
-  * @param {Number} Y-coordinate of the texture, from 0-1.
-  * @return {Mesh} This object.
-  */
  this.texCoord2=function(u,v){
   this.texCoord[0]=u;
   this.texCoord[1]=v;
   this._rebuildVertices(Mesh.TEXCOORDS_BIT);
   return this;
  }
- /**
-  * Adds a new vertex to this mesh.  If appropriate, adds an
-  * additional face index according to this mesh's current mode.
-  * @param {Number} X-coordinate of the vertex.
-  * @param {Number} Y-coordinate of the vertex.
-  * @param {Number} Z-coordinate of the vertex.
-  * @return {Mesh} This object.
-  */
  this.vertex3=function(x,y,z){
+  if(this.builderMode==-1)throw new Error("mode() not called");
   this.vertices.push(x,y,z);
   if((this.attributeBits&Mesh.COLORS_BIT)!=0){
    this.vertices.push(this.color[0],this.color[1],this.color[2]);
@@ -995,64 +1115,26 @@ function Mesh(vertices,faces,format){
      (this.vertices.length-this.startIndex)%(this.stride*3)==0){
    var index=(this.vertices.length/this.stride)-3;
    this.tris.push(index,index+1,index+2);
-  } else if(this.builderMode==Mesh.LINES &&
-     (this.vertices.length-this.startIndex)%(this.stride*2)==0){
-   var index=(this.vertices.length/this.stride)-2;
-   this.tris.push(index,index+1);
   }
   return this;
  }
 }
-Mesh._recalcNormals=function(vertices,faces,stride,offset){
-  for(var i=0;i<vertices.length;i+=stride){
-    vertices[i+offset]=0.0
-    vertices[i+offset+1]=0.0
-    vertices[i+offset+2]=0.0
+SubMesh.prototype.toWireFrame=function(){
+  if(this.builderMode==Mesh.LINES){
+   return this;
   }
-  for(var i=0;i<faces.length;i+=3){
-    var v1=faces[i]*stride
-    var v2=faces[i+1]*stride
-    var v3=faces[i+2]*stride
-    var n1=[vertices[v2]-vertices[v3],vertices[v2+1]-vertices[v3+1],vertices[v2+2]-vertices[v3+2]]
-    var n2=[vertices[v1]-vertices[v3],vertices[v1+1]-vertices[v3+1],vertices[v1+2]-vertices[v3+2]]
-    // cross multiply n1 and n2
-    var x=n1[1]*n2[2]-n1[2]*n2[1]
-    var y=n1[2]*n2[0]-n1[0]*n2[2]
-    var z=n1[0]*n2[1]-n1[1]*n2[0]
-    // normalize xyz vector
-    len=Math.sqrt(x*x+y*y+z*z);
-    if(len!=0){
-      len=1.0/len;
-      x*=len;
-      y*=len;
-      z*=len;
-      // add normalized normal to each vertex of the face
-      vertices[v1+offset]+=x
-      vertices[v1+offset+1]+=y
-      vertices[v1+offset+2]+=z
-      vertices[v2+offset]+=x
-      vertices[v2+offset+1]+=y
-      vertices[v2+offset+2]+=z
-      vertices[v3+offset]+=x
-      vertices[v3+offset+1]+=y
-      vertices[v3+offset+2]+=z
-    }
+  var faces=[];
+  for(var i=0;i<this.tris.length;i+=3){
+    var f1=this.tris[i];
+    var f2=this.tris[i+1];
+    var f3=this.tris[i+2];
+    faces.push(f1,f2,f2,f3,f3,f1);
   }
-  // Normalize each normal of the vertex
-  for(var i=0;i<vertices.length;i+=stride){
-    var x=vertices[i+offset];
-    var y=vertices[i+offset+1];
-    var z=vertices[i+offset+2];
-    len=Math.sqrt(x*x+y*y+z*z);
-    if(len){
-      len=1.0/len;
-      vertices[i+offset]=x*len;
-      vertices[i+offset+1]=y*len;
-      vertices[i+offset+2]=z*len;
-    }
-  }
+  var ret=new SubMesh(this.vertices, faces, this.attributeBits);
+  ret.builderMode=Mesh.LINES;
+  return ret;
 }
-Mesh.prototype.recalcBounds=function(){
+SubMesh.prototype.recalcBounds=function(){
   var stride=Mesh.getStride(this.attributeBits);
   var minx=0;
   var maxx=0;
@@ -1080,7 +1162,7 @@ Mesh.prototype.recalcBounds=function(){
   this.bounds=[[minx,miny,minz],[maxx,maxy,maxz]];
   return this;
 };
-Mesh.prototype.recalcNormals=function(){
+SubMesh.prototype.recalcNormals=function(){
   this._rebuildVertices(Mesh.NORMALS_BIT);
   Mesh._recalcNormals(this.vertices,this.tris,
     this.stride,3);
@@ -1115,6 +1197,44 @@ Mesh.LINES = 3;
 
 /** A geometric mesh in the form of a vertex buffer object. */
 function BufferedMesh(mesh, context){
+ this.subMeshes=[];
+ for(var i=0;i<mesh.subMeshes.length;i++){
+  this.subMeshes.push(new BufferedSubMesh(
+    mesh.subMeshes[i],context));
+ }
+}
+/**
+* Binds the buffers in this object to attributes according
+* to their data format.
+* @param {ShaderProgram} A shader program object to get
+* the IDs from for uniforms named "position", "normal",
+* "colorAttr", and "textureUV".
+*/
+BufferedMesh.prototype.bind=function(program){
+ for(var i=0;i<this.subMeshes.length;i++){
+  this.subMeshes[i].bind(program);
+ }
+}
+BufferedMesh.prototype.draw=function(program){
+ for(var i=0;i<this.subMeshes.length;i++){
+  this.subMeshes[i].draw(program);
+ }
+}
+/**
+* Deletes the vertex and index buffers associated with this object.
+*/
+BufferedMesh.prototype.unload=function(program){
+ for(var i=0;i<this.subMeshes;i++){
+  this.subMeshes[i].unload(program);
+ }
+}
+BufferedMesh._vertexAttrib=function(context, attrib, size, type, stride, offset){
+  if(attrib!==null){
+    context.enableVertexAttribArray(attrib);
+    context.vertexAttribPointer(attrib,size,type,false,stride,offset);
+  }
+}
+function BufferedSubMesh(mesh, context){
  var vertbuffer=context.createBuffer();
  var facebuffer=context.createBuffer();
  context.bindBuffer(context.ARRAY_BUFFER, vertbuffer);
@@ -1136,21 +1256,13 @@ function BufferedMesh(mesh, context){
  }
   this.verts=vertbuffer;
   this.faces=facebuffer;
+  this.primitiveType=mesh.primitiveType;
   this.facesLength=mesh.tris.length;
   this.type=type;
   this.format=mesh.attributeBits;
   this.context=context;
 }
-BufferedMesh._vertexAttrib=function(context, attrib, size, type, stride, offset){
-  if(attrib!==null){
-    context.enableVertexAttribArray(attrib);
-    context.vertexAttribPointer(attrib,size,type,false,stride,offset);
-  }
-}
-/**
-* Deletes the vertex and index buffers associated with this object.
-*/
-BufferedMesh.prototype.unload=function(){
+BufferedSubMesh.prototype.unload=function(){
  if(this.verts!=null)
   this.context.deleteBuffer(this.verts);
  if(this.faces!=null)
@@ -1158,14 +1270,7 @@ BufferedMesh.prototype.unload=function(){
  this.verts=null;
  this.faces=null;
 }
-/**
-* Binds the buffers in this object to attributes according
-* to their data format.
-* @param {ShaderProgram} A shader program object to get
-* the IDs from for uniforms named "position", "normal",
-* "colorAttr", and "textureUV".
-*/
-BufferedMesh.prototype.bind=function(program){
+BufferedSubMesh.prototype.bind=function(program){
   var context=program.getContext();
   if(this.verts==null || this.faces==null){
    throw new Error("mesh buffer unloaded");
@@ -1197,6 +1302,20 @@ BufferedMesh.prototype.bind=function(program){
      program.get("textureUV"), 2,
     context.FLOAT, stride*4, offset*4);
   }
+}
+BufferedSubMesh.prototype.draw=function(program){
+  var context=program.getContext();
+  if(this.verts==null || this.faces==null){
+   throw new Error("mesh buffer unloaded");
+  }
+  if(context!=this.context){
+   throw new Error("can't bind mesh: context mismatch");
+  }
+  context.drawElements(
+    (this.primitiveType==Mesh.LINES) ? context.LINES :
+      context.TRIANGLES,
+    this.facesLength,
+    this.type, 0);
 }
 
 var Texture=function(name){
@@ -1635,14 +1754,9 @@ function Shape(mesh){
   this.position=[0,0,0];
   this.rotation=[0,0,0];
   this.uniforms=[];
-  this.drawLines=false;
   this._matrixDirty=true;
   this._invTransModel3=GLMath.mat3identity();
   this.matrix=GLMath.mat4identity();
-}
-Shape.prototype.setDrawLines=function(value){
- this.drawLines=value;
- return this;
 }
 Shape.prototype.loadMesh=function(context){
  if(!this.vertfaces){
@@ -1655,9 +1769,6 @@ Shape.prototype.setMatrix=function(value){
  this.matrix=value;
  this._invTransModel3=GLMath.mat4inverseTranspose3(this.matrix);
  return this;
-}
-Shape.prototype.getDrawLines=function(){
- return this.drawLines;
 }
 /**
 * Sets material parameters that give the shape a certain color.
@@ -1731,12 +1842,7 @@ Shape.prototype.render=function(program){
   uniforms["useColorAttr"]=((this.vertfaces.format&Mesh.COLORS_BIT)!=0) ?
      1.0 : 0.0;
   program.setUniforms(uniforms);
-  var context=program.getContext();
-  // Draw the shape
-  context.drawElements(
-    this.drawLines ? context.LINES : context.TRIANGLES,
-    this.vertfaces.facesLength,
-    this.vertfaces.type, 0);
+  this.vertfaces.draw(program);
 };
 
 ///////////////
