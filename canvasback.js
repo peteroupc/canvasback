@@ -207,7 +207,7 @@ CanvasBackground.prototype.drawBack=function(){
   this.sphereMesh=GLUtil.createSphere();
   var amb=8;
   this.scene=new Scene3D(this.context)
-    .setLightSource(LightSource.directionalLight([0,0,1],[0.25,0.25,0.25]))
+    .setDirectionalLight(0, [0,0,1])
     .setClearColor(rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0, 1.0);
  } else {
   this.context.fillStyle=this.constructor.hls2hex(this.hls);

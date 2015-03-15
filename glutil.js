@@ -528,7 +528,12 @@ ShaderProgram._compileShaders=function(context, vertexShader, fragmentShader){
     context.shaderSource(shader, text);
     context.compileShader(shader);
     if (!context.getShaderParameter(shader, context.COMPILE_STATUS)) {
-      console.log(text);
+      var lines=text.split("\n")
+      // add line numbers
+      for(var i=0;i<lines.length;i++){
+       lines[i]=(i+1)+"   "+lines[i]
+      }
+      console.log(lines.join("\n"));
 	  	console.log((kind==context.VERTEX_SHADER ? "vertex: " : "fragment: ")+
         context.getShaderInfoLog(shader));
 	  	return null;
@@ -593,15 +598,22 @@ var shader="" +
  // if shading is disabled, this is solid color instead of material diffuse
  "uniform vec3 md;\n" + // material diffuse color (0-1 each component). Is multiplied by texture/solid color.
 "#ifdef SHADING\n" +
+"struct light {\n" +
+" vec4 position; /* source light direction */\n" +
+" vec3 diffuse; /* source light diffuse color */\n" +
+"#ifdef SPECULAR\n" +
+" vec3 specular; /* source light specular color */\n" +
+"#endif\n" +
+"};\n" +
 "uniform mat4 viewInverse; /* internal */\n" +
-"uniform vec4 lightPosition;\n" + // source light direction
-"uniform vec3 sa;\n" + // source light ambient color
-"uniform vec3 sd;\n" + // source light diffuse color
-"uniform vec3 ss;\n" + // source light specular color
+"uniform vec3 sceneAmbient;\n" +
+"uniform light lights[3];\n" +
 "uniform vec3 ma;\n" + // material ambient color (-1 to 1 each component).
 "uniform vec3 me;\n" + // material emission color
+"#ifdef SPECULAR\n" +
 "uniform vec3 ms;\n" + // material specular color (0-1 each comp.).  Affects how intense highlights are.
 "uniform float mshin;\n" + // material shininess
+"#endif\n" +
 "#endif\n" +
 "uniform sampler2D sampler;\n" + // texture sampler
 "uniform float useTexture;\n" + // use texture sampler rather than solid color if 1
@@ -612,6 +624,20 @@ var shader="" +
 "varying vec4 worldPositionVar;\n" +
 "varying vec3 transformedNormalVar;\n"+
 "const vec4 white=vec4(1.0,1.0,1.0,1.0);\n"+
+"vec4 calcLightPower(light lt, vec4 worldPosition){\n" + 
+" vec3 sdir;\n" + 
+" float attenuation;\n" + 
+" if(lt.position.w == 0.0){\n" + 
+"  sdir=normalize(lt.position.xyz);\n" + 
+"  attenuation=1.0;\n" + 
+" } else {\n" + 
+"  vec3 vertexToLight=vec3(lt.position-worldPosition);\n" + 
+"  float dist=length(vertexToLight);\n" + 
+"  sdir=normalize(vertexToLight);\n" + 
+"  attenuation=1.0;\n" + 
+" }\n" + 
+" return vec4(sdir,attenuation);\n" + 
+"}\n" + 
 "#endif\n" +
 "void main(){\n" +
 " vec4 baseColor=mix(\n"+
@@ -626,27 +652,37 @@ var shader="" +
 "  vec4(colorAttrVar,1.0), /* when useColorAttr is 1 */\n" +
 "  useColorAttr);\n" +
 "#ifdef SHADING\n" +
-"vec3 sdir;\n"+
-"float attenuation;\n"+
-"if(lightPosition.w == 0.0){\n" +
-" sdir=normalize(vec3(lightPosition));\n" +
-" attenuation=1.0;\n" +
-"} else {\n"+
-" vec3 vertexToLight=vec3(lightPosition-worldPositionVar);\n"+
-" float dist=length(vertexToLight);\n"+
-" sdir=normalize(vertexToLight);\n" +
-" attenuation=1.0;\n" +
-"}\n"+
-"float diffInt=dot(transformedNormalVar,sdir);" +
+"vec4 lightPower[3];\n"+
+"lightPower[0]=calcLightPower(lights[0],worldPositionVar);\n"+
+"lightPower[1]=calcLightPower(lights[1],worldPositionVar);\n"+
+"lightPower[2]=calcLightPower(lights[2],worldPositionVar);\n"+
 "vec3 viewPosition=normalize(vec3(viewInverse*vec4(0,0,0,1)-worldPositionVar));\n" +
-"vec3 phong=sa*ma; /* ambient*/\n" +
-"if(diffInt>=0.0){\n" +
-"   // specular reflection\n" +
-"   phong+=(ss*ms*pow(max(dot(reflect(-sdir,transformedNormalVar)," +
-"      viewPosition),0.0),mshin));\n" +
+"vec3 phong=sceneAmbient*ma; /* ambient*/\n" +
+"#ifdef SPECULAR\n" +
+"// specular reflection\n" +
+"vec3 specular=vec3(0,0,0.);\n" +
+"if(dot(transformedNormalVar,lightPower[0].xyz)>=0.0){\n" +
+"   specular+=pow(max(dot(reflect(-lightPower[0].xyz,transformedNormalVar)," +
+"      viewPosition),0.0),mshin)*lights[0].specular*lightPower[0].w;\n" +
+"}\n" +
+"if(dot(transformedNormalVar,lightPower[1].xyz)>=0.0){\n" +
+"   specular+=pow(max(dot(reflect(-lightPower[1].xyz,transformedNormalVar)," +
+"      viewPosition),0.0),mshin)*lights[1].specular*lightPower[1].w;\n" +
+"}\n" +
+"if(dot(transformedNormalVar,lightPower[2].xyz)>=0.0){\n" +
+"   specular+=pow(max(dot(reflect(-lightPower[2].xyz,transformedNormalVar)," +
+"      viewPosition),0.0),mshin)*lights[2].specular*lightPower[2].w;\n" +
+"   phong+=(ms*specular);\n" +
 "}\n"+
+"#endif\n" +
 " // diffuse\n"+
-" phong+=sd*md*baseColor.rgb*max(0.0,dot(transformedNormalVar,sdir))*attenuation;\n" +
+" vec3 materialDiffuse=md*baseColor.rgb;\n"+
+" phong+=lights[0].diffuse*max(0.0,dot(transformedNormalVar," +
+"   lightPower[0].xyz))*lightPower[0].w*materialDiffuse;\n" +
+" phong+=lights[1].diffuse*max(0.0,dot(transformedNormalVar," +
+"   lightPower[1].xyz))*lightPower[1].w*materialDiffuse;\n" +
+" phong+=lights[2].diffuse*max(0.0,dot(transformedNormalVar," +
+"   lightPower[2].xyz))*lightPower[2].w*materialDiffuse;\n" +
 " // emission\n"+
 " phong+=me;\n" +
 " baseColor=vec4(phong,baseColor.a);\n" +
@@ -663,30 +699,55 @@ function LightSource(position, ambient, diffuse, specular) {
  this.diffuse=diffuse||[1,1,1];
  this.specular=specular||[1,1,1];
 };
-LightSource.directionalLight=function(position,ambient,diffuse,specular){
- var source=new LightSource()
- source.ambient=ambient || [0,0,0,1.0]
- source.position=position ? [position[0],position[1],position[2],0.0] : [0,0,1,0];
- source.diffuse=diffuse||[1,1,1];
- source.specular=specular||[1,1,1];
- return source;
-};
-LightSource.pointLight=function(position,ambient,diffuse,specular){
- var source=new LightSource()
- source.ambient=ambient || [0,0,0,1.0]
- source.position=position ? [position[0],position[1],position[2],1.0] : [0,0,0,0];
- source.diffuse=diffuse||[1,1,1];
- source.specular=specular||[1,1,1];
- return source;
-};
-LightSource.prototype.bind=function(program){
+
+function Lights(){
+ this.lights=[new LightSource()];
+ this.sceneAmbient=[0.2,0.2,0.2];
+}
+Lights._createLight=function(index, position, diffuse, specular,directional){
+ var lightPosition=position ? [position[0],position[1],position[2],
+   directional ? 0.0 : 1.0] : (directional ? [0,0,1,0] : [0,0,0,1]);
+ var lightDiffuse=diffuse || (index==0 ? [1,1,1] : [0,0,0]);
+ var lightSpecular=specular || (index==0 ? [1,1,1] : [0,0,0]);
+ var light=new LightSource();
+ light.ambient=[0,0,0,1.0]; // not currently used
+ light.position=lightPosition;
+ light.diffuse=lightDiffuse;
+ light.specular=lightSpecular;
+ return light;
+}
+Lights.prototype.setDirectionalLight=function(index,position, diffuse, specular){
+ this.lights[index]=Lights._createLight(index,position,diffuse,specular,true);
+ return this;
+}
+Lights.prototype.setPointLight=function(index,position, diffuse, specular){
+ this.lights[index]=Lights._createLight(index,position,diffuse,specular,false);
+ return this;
+}
+Lights.prototype.addDirectionalLight=function(position, diffuse, specular){
+ this.lights.push(Lights._createLight(this.lights.length,position,diffuse,specular,true));
+ return this;
+}
+Lights.prototype.addPointLight=function(position, diffuse, specular){
+ this.lights.push(Lights._createLight(this.lights.length,position,diffuse,specular,false));
+ return this;
+}
+
+Lights.prototype.bind=function(program){
  if(!program)return this;
- program.setUniforms({
- "sa":[this.ambient[0],this.ambient[1],this.ambient[2]],
- "lightPosition":this.position,
- "sd":this.diffuse,
- "ss":this.specular
- });
+ var uniforms={};
+ uniforms["sceneAmbient"]=this.sceneAmbient.slice(0,3);
+ for(var i=0;i<this.lights.length;i++){
+  uniforms["lights["+i+"].diffuse"]=this.lights[i].diffuse;
+  uniforms["lights["+i+"].specular"]=this.lights[i].specular;
+  uniforms["lights["+i+"].position"]=this.lights[i].position;
+ }
+ for(var i=this.lights.length;i<3;i++){
+  uniforms["lights["+i+"].diffuse"]=[0,0,0];
+  uniforms["lights["+i+"].specular"]=[0,0,0];
+  uniforms["lights["+i+"].position"]=[0,0,0,0];
+ }
+ program.setUniforms(uniforms);
  return this;
 }
 
@@ -771,7 +832,6 @@ MaterialShade.prototype.bind=function(program){
 }
 
 /**
-*
 * Specifies the triangles or lines that make up a geometric shape.
 * @param {Array<Number>} An array that contains data on each vertex of the mesh.
 * Each vertex is made up of the same number of elements, as defined in
@@ -1310,6 +1370,7 @@ function Scene3D(context){
  this.context.viewport(0,0,
     this.context.canvas.width*1.0,this.context.canvas.height*1.0);
  this.lightingEnabled=true;
+ this.specularEnabled=true;
  this.program=new ShaderProgram(context,
    this._getDefines()+ShaderProgram.getDefaultVertex(),
    this._getDefines()+ShaderProgram.getDefaultFragment());
@@ -1323,7 +1384,7 @@ function Scene3D(context){
  this._invProjectionView=null;
  this._invTransModel3=null;
  this._invView=null;
- this.lightSource=new LightSource();
+ this.lightSource=new Lights();
  this.context.blendFunc(context.SRC_ALPHA,context.ONE_MINUS_SRC_ALPHA);
  this.context.enable(this.context.DEPTH_TEST);
  this.context.depthFunc(this.context.LEQUAL);
@@ -1332,11 +1393,14 @@ function Scene3D(context){
  this.context.clear(
     this.context.COLOR_BUFFER_BIT |
     this.context.DEPTH_BUFFER_BIT);
+ this.useProgram(this.program);
 }
 Scene3D.prototype._getDefines=function(){
  var ret="";
  if(this.lightingEnabled)
   ret+="#define SHADING\n"
+ if(this.lightingEnabled)
+  ret+="#define SPECULAR\n"
  return ret;
 }
 /** Returns the WebGL context associated with this scene. */
@@ -1344,7 +1408,9 @@ Scene3D.prototype.getContext=function(){
  return this.context;
 }
 Scene3D.prototype._initProgramData=function(){
-  this.program.setUniforms({"sampler":0});
+  this.program.setUniforms({
+    "sampler":0,
+  });
   this.lightSource.bind(this.program);
   // update matrix-related uniforms later
   this._matrixDirty=true;
@@ -1383,9 +1449,10 @@ Scene3D.prototype.getAspect=function(){
 }
 /**
 *  Sets this scene's projection matrix to a perspective view.
-* @param {Number}  Y-axis field of view, in degrees.  (Zoom can
-* be implemented by multiplying field of view by an additional
-* factor.)
+* @param {Number}  Y-axis field of view, in degrees.  (The bigger
+* this number, the bigger close objects appear to be.  As a result,
+* zoom can be implemented by multiplying field of view by an 
+* additional factor.)
 * @param {Number}  The aspect ratio of the viewport, usually
 *  the scene's aspect ratio (getAspect()).
 * @param {Number} The distance from the camera to
@@ -1510,9 +1577,14 @@ Scene3D.prototype.addShape=function(shape){
  this.shapes.push(shape.loadMesh(this.context));
  return this;
 }
-Scene3D.prototype.setLightSource=function(light){
- this.lightSource=light;
- if(light)this.lightSource.bind(this.program);
+Scene3D.prototype.setDirectionalLight=function(index, position, diffuse, specular){
+ this.lightSource.setDirectionalLight(index,position,diffuse,specular);
+ this.lightSource.bind(this.program);
+ return this;
+}
+Scene3D.prototype.setPointLight=function(index, position, diffuse, specular){
+ this.lightSource.setPointLight(index,position,diffuse,specular);
+ this.lightSource.bind(this.program);
  return this;
 }
 Scene3D.prototype.render=function(){
