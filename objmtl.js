@@ -49,6 +49,17 @@ ObjData.prototype.toShape=function(){
  }
  return multi;
 }
+ObjData.prototype.toShapeFromName=function(name){
+ var multi=new MultiShape();
+ for(var i=0;i<this.meshes.length;i++){
+  if(this.meshes[i].name!=name)continue;
+  var shape=new Shape(this.meshes[i].data);
+  var mat=this._getMaterial(this.meshes[i]);
+  shape.setMaterial(mat);
+  multi.add(shape);
+ }
+ return multi;
+}
 ObjData._resolvePath=function(path, name){
  // Relatively dumb for a relative path
  // resolver, but sufficient here, as it will

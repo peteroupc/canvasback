@@ -11,9 +11,9 @@ renderLoop:function(func){
   func();
   var selfRefFunc=function(){
    func();
-   GLUtil.callRequestFrame(selfRefFunc);
+   window.requestAnimationFrame(selfRefFunc);
   };
-  GLUtil.callRequestFrame(selfRefFunc);
+  window.requestAnimationFrame(selfRefFunc);
 },
 get3DOr2DContext:function(canvasElement){
   if(!canvasElement)return null;
@@ -63,15 +63,6 @@ get3DContext:function(canvasElement,err){
 },
 is3DContext:function(context){
  return context && ("compileShader" in context);
-},
-callRequestFrame:function(func){
- var raf=window.requestAnimationFrame || window.mozRequestAnimationFrame ||
-    window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
- if(raf){
-  raf(func);
- } else {
-  window.setTimeout(func,17);
- }
 },
 getPromiseResults:function(promises,
    progressResolve, progressReject){
@@ -267,6 +258,16 @@ loadFileFromUrl:function(url){
  });
 }
 };
+
+if(!window.requestAnimationFrame){
+ window.requestAnimationFrame=window.mozRequestAnimationFrame ||
+    window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
+ if(!window.requestAnimationFrame){
+  window.requestAnimationFrame=function(func){
+   window.setTimeout(func,17);
+  }
+ }
+}
 
 (function(exports){
 
@@ -692,6 +693,10 @@ LightSource.prototype.bind=function(program){
 /**
 * Specifies parameters for geometry materials, particularly, how an
 * object reflects or absorbs light.
+* The full structure is only used if the shader program supports lighting, as the
+* default shader program does.  If Scene3D.disableLighting() is called,
+* disabling lighting calculations in the default shader, only
+* the diffuse property of this object is used.
 * @param {Array<Number>} ambient Ambient reflection.  An array of three numbers
 * indicating how much an object reflects ambient lights (lights that shine
 * on all objects equally in all directions) in the red, green,
@@ -784,6 +789,7 @@ function Mesh(vertices,faces,format){
  this.stride=3;
  this.builderMode=Mesh.TRIANGLES;
  this.normal=[0,0,0];
+ this.bounds=null;
  this.color=[0,0,0];
  this.texCoord=[0,0];
  this.startIndex=0;
@@ -985,6 +991,34 @@ Mesh._recalcNormals=function(vertices,faces,stride,offset){
     }
   }
 }
+Mesh.prototype.recalcBounds=function(){
+  var stride=Mesh.getStride(this.attributeBits);
+  var minx=0;
+  var maxx=0;
+  var miny=0;
+  var maxy=0;
+  var minz=0;
+  var maxz=0;
+  for(var i=0;i<vertices.length;i+=stride){
+    var x=vertices[i];
+    var y=vertices[i+1];
+    var z=vertices[i+2];
+    if(i==0){
+      minx=maxx=x;
+      miny=maxy=y;
+      minz=maxz=z;
+    } else {
+      minx=Math.min(minx,x);
+      miny=Math.min(miny,y);
+      minz=Math.min(minz,z);
+      maxx=Math.max(maxx,x);
+      maxy=Math.max(maxy,y);
+      maxz=Math.max(maxz,z);
+    }
+  }
+  this.bounds=[[minx,miny,minz],[maxx,maxy,maxz]];
+  return this;
+};
 Mesh.prototype.recalcNormals=function(){
   this._rebuildVertices(Mesh.NORMALS_BIT);
   Mesh._recalcNormals(this.vertices,this.tris,
