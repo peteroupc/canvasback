@@ -624,20 +624,20 @@ var shader="" +
 "varying vec4 worldPositionVar;\n" +
 "varying vec3 transformedNormalVar;\n"+
 "const vec4 white=vec4(1.0,1.0,1.0,1.0);\n"+
-"vec4 calcLightPower(light lt, vec4 worldPosition){\n" + 
-" vec3 sdir;\n" + 
-" float attenuation;\n" + 
-" if(lt.position.w == 0.0){\n" + 
-"  sdir=normalize(lt.position.xyz);\n" + 
-"  attenuation=1.0;\n" + 
-" } else {\n" + 
-"  vec3 vertexToLight=vec3(lt.position-worldPosition);\n" + 
-"  float dist=length(vertexToLight);\n" + 
-"  sdir=normalize(vertexToLight);\n" + 
-"  attenuation=1.0;\n" + 
-" }\n" + 
-" return vec4(sdir,attenuation);\n" + 
-"}\n" + 
+"vec4 calcLightPower(light lt, vec4 worldPosition){\n" +
+" vec3 sdir;\n" +
+" float attenuation;\n" +
+" if(lt.position.w == 0.0){\n" +
+"  sdir=normalize(lt.position.xyz);\n" +
+"  attenuation=1.0;\n" +
+" } else {\n" +
+"  vec3 vertexToLight=vec3(lt.position-worldPosition);\n" +
+"  float dist=length(vertexToLight);\n" +
+"  sdir=normalize(vertexToLight);\n" +
+"  attenuation=1.0;\n" +
+" }\n" +
+" return vec4(sdir,attenuation);\n" +
+"}\n" +
 "#endif\n" +
 "void main(){\n" +
 " vec4 baseColor=mix(\n"+
@@ -672,8 +672,8 @@ var shader="" +
 "if(dot(transformedNormalVar,lightPower[2].xyz)>=0.0){\n" +
 "   specular+=pow(max(dot(reflect(-lightPower[2].xyz,transformedNormalVar)," +
 "      viewPosition),0.0),mshin)*lights[2].specular*lightPower[2].w;\n" +
-"   phong+=(ms*specular);\n" +
 "}\n"+
+" phong+=(ms*specular);\n" +
 "#endif\n" +
 " // diffuse\n"+
 " vec3 materialDiffuse=md*baseColor.rgb;\n"+
@@ -853,6 +853,7 @@ function Mesh(vertices,faces,format){
  this.color=[0,0,0];
  this.texCoord=[0,0];
  this.startIndex=0;
+ this.hasLines=false;
  this.attributeBits=(format==null) ? 0 : format;
  this.mode=function(m){
   this.builderMode=m;
@@ -989,7 +990,7 @@ function Mesh(vertices,faces,format){
   } else if(this.builderMode==Mesh.QUADS &&
      (this.vertices.length-this.startIndex)%(this.stride*4)==0){
    var index=(this.vertices.length/this.stride)-4;
-   this.tris.push(index,index+1,index+2,index+2,index+1,index+3);
+   this.tris.push(index,index+1,index+2,index+2,index+3,index);
   } else if(this.builderMode==Mesh.TRIANGLES &&
      (this.vertices.length-this.startIndex)%(this.stride*3)==0){
    var index=(this.vertices.length/this.stride)-3;
@@ -1451,7 +1452,7 @@ Scene3D.prototype.getAspect=function(){
 *  Sets this scene's projection matrix to a perspective view.
 * @param {Number}  Y-axis field of view, in degrees.  (The bigger
 * this number, the bigger close objects appear to be.  As a result,
-* zoom can be implemented by multiplying field of view by an 
+* zoom can be implemented by multiplying field of view by an
 * additional factor.)
 * @param {Number}  The aspect ratio of the viewport, usually
 *  the scene's aspect ratio (getAspect()).
@@ -1602,9 +1603,9 @@ function MultiShape(){
  this.shapes=[];
 }
 /** Sets the scaling for each individual shape. */
-MultiShape.prototype.setScale=function(scale){
+MultiShape.prototype.setScale=function(x,y,z){
  for(var i=0;i<this.shapes.length;i++){
-  this.shapes[i].setScale(scale);
+  this.shapes[i].setScale(x,y,z);
  }
 }
 MultiShape.prototype.render=function(program){
@@ -1632,7 +1633,7 @@ function Shape(mesh){
   this.scale=[1,1,1];
   this.angle=0;
   this.position=[0,0,0];
-  this.vector=[0,0,0];
+  this.rotation=[0,0,0];
   this.uniforms=[];
   this.drawLines=false;
   this._matrixDirty=true;
@@ -1680,7 +1681,10 @@ Shape.prototype.setMaterial=function(material){
 }
 Shape.prototype.setScale=function(x,y,z){
   if(x!=null && y==null && z==null){
-   this.scale=[x,x,x];
+   if(x.constructor==Array)
+    this.scale=x.slice(0,3);
+   else
+    this.scale=[x,x,x];
   } else {
    this.scale=[x,y,z];
   }
@@ -1688,13 +1692,19 @@ Shape.prototype.setScale=function(x,y,z){
   return this;
 }
 Shape.prototype.setPosition=function(x,y,z){
-  this.position=[x,y,z];
+  if(x!=null && y==null && z==null){
+   if(x.constructor==Array)
+    this.position=x.slice(0,3);
+   else
+    this.position=[x,x,x];
+  } else {
+   this.position=[x,y,z];
+  }
   this._matrixDirty=true;
   return this;
 }
-Shape.prototype.setRotation=function(angle, vector){
-  this.angle=angle%360;
-  this.vector=vector;
+Shape.prototype.setRotation=function(rotation){
+  this.rotation=rotation.slice(0,3);
   this._matrixDirty=true;
   return this;
 }
@@ -1733,8 +1743,14 @@ Shape.prototype.render=function(program){
 Shape.prototype._updateMatrix=function(){
   this._matrixDirty=false;
   this.matrix=GLMath.mat4scaled(this.scale);
-  if(this.angle!=0){
-    this.matrix=GLMath.mat4rotate(this.matrix,this.angle,this.vector);
+  if(this.rotation[0]!=0){
+    this.matrix=GLMath.mat4rotate(this.matrix,this.rotation[0],[1,0,0]);
+  }
+  if(this.rotation[1]!=0){
+    this.matrix=GLMath.mat4rotate(this.matrix,this.rotation[1],[0,1,0]);
+  }
+  if(this.rotation[2]!=0){
+    this.matrix=GLMath.mat4rotate(this.matrix,this.rotation[2],[0,0,1]);
   }
   this.matrix[12]+=this.position[0];
   this.matrix[13]+=this.position[1];

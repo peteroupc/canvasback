@@ -243,12 +243,12 @@ CanvasBackground.prototype.drawOne=function(){
   rgb[2]/=255
    var angle=this.constructor.rand(160);
    var vector=[
-     (this.constructor.rand(360))/360.0,
-     (this.constructor.rand(360))/360.0,
-     (this.constructor.rand(30))/30.0];
+     (this.constructor.rand(360)),
+     (this.constructor.rand(360)),
+     (this.constructor.rand(360))];
    var shape=new Shape(mesh)
     .setScale(radius,radius,radius)
-    .setRotation(angle,vector)
+    .setRotation(vector)
     .setPosition(x,y,z)
     .setColor(rgb);
    this.scene.addShape(shape);
