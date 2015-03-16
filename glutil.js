@@ -850,7 +850,7 @@ function Mesh(vertices,faces,format){
  ];
  this.builderMode=-1;
 }
-Mesh.constructor._primitiveType=function(mode){
+Mesh._primitiveType=function(mode){
  if(mode==Mesh.LINES)
   return Mesh.LINES;
  else
@@ -911,12 +911,12 @@ Mesh._recalcNormals=function(vertices,faces,stride,offset){
     }
   }
 }
- this.getAttributeBits=function(){
+ Mesh.prototype.getAttributeBits=function(){
   // It is assumed that each sub-mesh has the same
   // attribute bits
   return this.subMeshes[0].attributeBits;
  }
- this.mode=function(m){
+ Mesh.prototype.mode=function(m){
   if(this.subMeshes.length>0 &&
     !Mesh._isCompatibleMode(this.builderMode,m)){
    this.subMeshes.push(new SubMesh().mode(m));
