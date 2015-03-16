@@ -22,8 +22,13 @@ at: http://upokecenter.dreamhosters.com/articles/donate-now-2/
 }(this, function (exports) {
 	if (exports.GLUtil) { return; }
 
+/**
+* Contains miscellaneous utility methods.
+* @alias glutil.GLUtil
+* @public
+*/
 var GLUtil={
-renderLoop:function(func){
+"renderLoop":function(func){
   func();
   var selfRefFunc=function(){
    func();
@@ -31,7 +36,7 @@ renderLoop:function(func){
   };
   window.requestAnimationFrame(selfRefFunc);
 },
-get3DOr2DContext:function(canvasElement){
+"get3DOr2DContext":function(canvasElement){
   if(!canvasElement)return null;
   if(!canvasElement.getContext)return null;
   var context=null;
@@ -60,7 +65,7 @@ get3DOr2DContext:function(canvasElement){
   }
   return context;
 },
-get3DContext:function(canvasElement,err){
+"get3DContext":function(canvasElement,err){
   if(!canvasElement)return null;
   var c=GLUtil.get3DOr2DContext(canvasElement);
   var errmsg=null;
@@ -77,25 +82,28 @@ get3DContext:function(canvasElement,err){
   }
   return c;
 },
-is3DContext:function(context){
+"is3DContext":function(context){
  return context && ("compileShader" in context);
 },
-getPromiseResults:function(promises,
+/**
+* Utility function that returns a promise that
+ * resolves after the given list of promises finishes
+ * its work.  
+ * @result {Promise} A promise that is never rejected.  The result 
+ * of the promise will be an object with
+ * two keys:
+ *  "successes" - contains a list of results from the
+ *  promises that succeeded.
+ *  "failures" - contains a list of results from the
+ *  promises that failed.
+ * @param {Array.<Promise>} promises - an array containing promise objects
+ *  @param {Function|undefined} progressResolve - a function called as each
+ *   individual promise is resolved; optional
+ *  @param {Function|undefined} progressReject - a function called as each
+ *   individual promise is rejected; optional
+ */
+"getPromiseResults":function(promises,
    progressResolve, progressReject){
- // Utility function that returns a promise that
- // resolves after the given list of promises finishes
- // its work.  The result will be an object with
- // two keys:
- // successes - contains a list of results from the
- // promises that succeeded
- // failures - contains a list of results from the
- // promises that failed
- // --- Parameters:
- // promises - an array containing promise objects
- // progressResolve - a function called as each
- //  individual promise is resolved; optional
- // progressReject - a function called as each
- //  individual promise is rejected; optional
  if(!promises || promises.length==0){
   return Promise.resolve({
     successes:[], failures:[]});
@@ -120,7 +128,7 @@ getPromiseResults:function(promises,
   }
  });
 },
-createCube:function(xSize,ySize,zSize){
+"createCube":function(xSize,ySize,zSize){
  // Position X, Y, Z, normal NX, NY, NZ, texture U, V
  xSize/=2.0;
  ySize/=2.0;
@@ -138,7 +146,7 @@ createCube:function(xSize,ySize,zSize){
  13,14,12,14,15,16,17,18,16,18,19,20,21,22,20,22,23]
  return new Mesh(vertices,faces,Mesh.NORMALS_BIT | Mesh.TEXCOORDS_BIT);
 },
-createSphere:function(radius,div){
+"createSphere":function(radius,div){
 var radius = 1.0;
 var x, y, z;
 function hasSamePoints(v,a,b,c){
@@ -246,7 +254,7 @@ newStrip=false;
 return new Mesh(vertices,tris,
   Mesh.NORMALS_BIT | Mesh.TEXCOORDS_BIT);
 },
-loadFileFromUrl:function(url){
+"loadFileFromUrl":function(url){
  var urlstr=url;
  return new Promise(function(resolve, reject){
    var xhr=new XMLHttpRequest();
@@ -419,6 +427,7 @@ if(!namedColors){
 * or GPU.
 * If compiling or linking the shader program fails, a diagnostic
 * log is output to the JavaScript console.
+* @public
 * @constructor
 * @alias glutil.ShaderProgram
 * @param {WebGLRenderingContext} context A WebGL context associated with the
@@ -785,12 +794,12 @@ Lights.prototype.bind=function(program){
 * the diffuse property of this object is used.
 * @constructor
 * @alias glutil.MaterialShade
-* @param {Array<Number>} ambient Ambient reflection.  An array of three numbers
+* @param {Array.<number>} ambient Ambient reflection.  An array of three numbers
 * indicating how much an object reflects ambient lights (lights that shine
 * on all objects equally in all directions) in the red, green,
 * and blue components respectively.  Each component ranges from 0 to 1.
 * May be omitted; default is (0.2, 0.2, 0.2).
-* @param {Array<Number>} diffuse Diffuse reflection.  An array of three numbers
+* @param {Array.<number>} diffuse Diffuse reflection.  An array of three numbers
 * indicating how much an object reflects diffuse lights (lights that point
 * in a certain direction) in the red, green,
 * and blue components respectively.  Each component ranges from 0 to 1.
@@ -798,16 +807,16 @@ Lights.prototype.bind=function(program){
 * color.  If Scene3D.disableLighting() is called, disabling lighting calculations,
 * this value is used for coloring objects.
 * May be omitted; default is (0.8, 0.8, 0.8).
-* @param {Array<Number>} specular Color of specular highlights on an
+* @param {Array.<number>} specular Color of specular highlights on an
 * object.  An array of three numbers indicating the red, green, and blue
 * components.
 * Each component ranges from 0 to 1.
 * May be omitted; default is (0,0,0).
-* @param {Array<Number>} shininess Indicates how sharp the specular
+* @param {Array.<number>} shininess Indicates how sharp the specular
 * highlights are.  0 means the object creates no specular highlights. Ranges
 * from 0 through 128.
 * May be omitted; default is 0.
-* @param {Array<Number>} emission Additive color emitted by an object.
+* @param {Array.<number>} emission Additive color emitted by an object.
 * Used for objects that glow on their own, among other things. An array of
 * three numbers indicating the red, green, and blue components.
 * Each component ranges from -1 to 1. Positive values add to each component,
@@ -836,7 +845,7 @@ MaterialShade.prototype.copy=function(){
 }
 /** Convenience method that returns a MaterialShader
  * object from an RGBA color.
-* @param {Array<Number>|number|string} r Array of three or
+* @param {Array.<number>|number|string} r Array of three or
 * four color components; or the red color component (0-1); or a string
 * specifying an HTML or CSS color.
 * @param {number} g Green color component (0-1).
@@ -864,11 +873,11 @@ MaterialShade.prototype.bind=function(program){
 * Specifies the triangles and lines that make up a geometric shape.
 * @constructor
 * @alias glutil.Mesh
-* @param {Array<Number>} vertices An array that contains data on each
+* @param {Array.<number>} vertices An array that contains data on each
 * vertex of the mesh.
 * Each vertex is made up of the same number of elements, as defined in
 * format. If null or omitted, creates an initially empty mesh.
-* @param {Array<Number>} faces An array of vertex indices.  Each trio of
+* @param {Array.<number>} faces An array of vertex indices.  Each trio of
 * indices specifies a separate triangle.
 * If null or omitted, creates an initially empty mesh.
 * @param {number} format A set of bit flags depending on the kind of data
@@ -1690,12 +1699,13 @@ Scene3D.prototype._setClearColor=function(){
 
 /**
 * Sets the color used when clearing the screen each frame.
-* @param {Array<Number>|number|string} Array of three or
+* @param {Array.<number>|number|string} Array of three or
 * four color components; or the red color component (0-1); or a string
 * specifying an HTML or CSS color.
 * @param {number} Green color component (0-1).
 * @param {number} Blue color component (0-1).
 * @param {number} Alpha color component (0-1).
+* @return {Scene3D} this object.
 */
 Scene3D.prototype.setClearColor=function(r,g,b,a){
  this.clearColor=GLUtil["toGLColor"](r,g,b,a);
@@ -1714,7 +1724,7 @@ Scene3D.prototype.loadTexture=function(name){
 /**
 * Loads a texture from an image URL and uploads it
 * to a texture buffer object.
-* @param {string} URL of the image to load.
+* @param {string} name URL of the image to load.
 * @return {Promise} A promise that is resolved when
 * the image is loaded successfully and uploaded
 * to a texture buffer (the result will be a Texture
@@ -1724,6 +1734,20 @@ Scene3D.prototype.loadAndMapTexture=function(name){
  return Texture.loadAndMapTexture(
    name, this.context, this.textureCache);
 }
+/**
+* Loads one or more textures from an image URL and uploads each of them
+* to a texture buffer object.
+* @param {Array.<string>} textureFiles A list of URLs of the image to load.
+* @param {Function|undefined} resolved Called for each URL that is loaded successfully
+* and uploaded to a texture buffer(the argument will be a Texture object.)
+* @param {Function|undefined} rejected Called for each URL for which an error
+* occurs (the argument will be the data passed upon
+* rejection).
+* @return {Promise} A promise that is resolved when
+* all the URLs in the textureFiles array are either resolved or rejected.
+* The result will be an object with two properties: "successes" and "failures".
+* See GLUtil.getPromiseResults.
+*/
 Scene3D.prototype.loadAndMapTextures=function(textureFiles, resolve, reject){
  var promises=[];
  for(var i=0;i<textureFiles.length;i++){
@@ -1754,7 +1778,7 @@ Scene3D.prototype.setProjectionMatrix=function(matrix){
 }
 /**
 *  Sets this scene's view matrix.
-* @param {Array<number>} A 16-element matrix.
+* @param {Array.<number>} A 16-element matrix.
 */
 Scene3D.prototype.setViewMatrix=function(matrix){
  this._viewMatrix=GLMath.mat4copy(matrix);
@@ -1763,11 +1787,11 @@ Scene3D.prototype.setViewMatrix=function(matrix){
 }
 /**
 *  Sets this scene's view matrix to represent a camera view.
-* @param {Array<number>} A 3-element vector specifying
+* @param {Array.<number>} A 3-element vector specifying
 * the camera position.
-* @param {Array<number>} A 3-element vector specifying
+* @param {Array.<number>} A 3-element vector specifying
 * the point the camera is looking at.
-* @param {Array<number>} A 3-element vector specifying
+* @param {Array.<number>} A 3-element vector specifying
 * the up-vector direction.  May be omitted, in which case
 * the default is a vector pointing positive on the Y axis.  This
 * vector must not point in the same direction as the camera's
@@ -1867,7 +1891,7 @@ Shape.prototype.setMatrix=function(value){
 }
 /**
 * Sets material parameters that give the shape a certain color.
-* @param {Array<Number>|number|string} r Array of three or
+* @param {Array.<number>|number|string} r Array of three or
 * four color components; or the red color component; or a string
 * specifying an HTML or CSS color.
 * @param {number} g Green color component.
