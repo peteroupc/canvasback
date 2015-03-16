@@ -25,7 +25,6 @@ at: http://upokecenter.dreamhosters.com/articles/donate-now-2/
 /**
 * Contains miscellaneous utility methods.
 * @alias glutil.GLUtil
-* @public
 */
 var GLUtil={
 "renderLoop":function(func){
@@ -88,8 +87,8 @@ var GLUtil={
 /**
 * Utility function that returns a promise that
  * resolves after the given list of promises finishes
- * its work.  
- * @result {Promise} A promise that is never rejected.  The result 
+ * its work.
+ * @result {Promise} A promise that is never rejected.  The result
  * of the promise will be an object with
  * two keys:
  *  "successes" - contains a list of results from the
@@ -427,7 +426,7 @@ if(!namedColors){
 * or GPU.
 * If compiling or linking the shader program fails, a diagnostic
 * log is output to the JavaScript console.
-* @public
+*
 * @constructor
 * @alias glutil.ShaderProgram
 * @param {WebGLRenderingContext} context A WebGL context associated with the
@@ -793,6 +792,7 @@ Lights.prototype.bind=function(program){
 * disabling lighting calculations in the default shader, only
 * the diffuse property of this object is used.
 * @constructor
+*
 * @alias glutil.MaterialShade
 * @param {Array.<number>} ambient Ambient reflection.  An array of three numbers
 * indicating how much an object reflects ambient lights (lights that shine
@@ -872,6 +872,7 @@ MaterialShade.prototype.bind=function(program){
 /**
 * Specifies the triangles and lines that make up a geometric shape.
 * @constructor
+*
 * @alias glutil.Mesh
 * @param {Array.<number>} vertices An array that contains data on each
 * vertex of the mesh.
@@ -882,9 +883,9 @@ MaterialShade.prototype.bind=function(program){
 * If null or omitted, creates an initially empty mesh.
 * @param {number} format A set of bit flags depending on the kind of data
 * each vertex contains.  Each vertex contains 3 elements plus:
-*  - 3 more elements if Mesh.NORMALS_BIT is set, plus
-*  - 3 more elements if Mesh.COLORS_BIT is set, plus
-*  - 2 more elements if Mesh.TEXCOORDS_BIT is set.
+*  -- 3 more elements if Mesh.NORMALS_BIT is set, plus
+*  -- 3 more elements if Mesh.COLORS_BIT is set, plus
+*  -- 2 more elements if Mesh.TEXCOORDS_BIT is set.
 */
 function Mesh(vertices,faces,format){
  this.subMeshes=[
@@ -1267,11 +1268,47 @@ Mesh.COLORS_BIT = 2;
  @default
 */
 Mesh.TEXCOORDS_BIT = 4;
+/**
+Primitive mode for rendering triangles, made up
+of 3 vertices each.
+ @constant
+*/
 Mesh.TRIANGLES = 0;
+/**
+Primitive mode for rendering a strip of quadrilaterals (quads).
+The first 4 vertices make up the first quad, and each additional
+quad is made up of the last 2 vertices of the previous quad and
+2 new vertices.
+ @constant
+*/
 Mesh.QUAD_STRIP = 1;
+/**
+Primitive mode for rendering quadrilaterals, made up
+of 4 vertices each.
+ @constant
+*/
 Mesh.QUADS = 2;
+/**
+Primitive mode for rendering line segments, made up
+of 2 vertices each.
+ @constant
+*/
 Mesh.LINES = 3;
+/**
+Primitive mode for rendering a triangle fan.  The first 3
+vertices make up the first triangle, and each additional
+triangle is made up of the last vertex, the first vertex, and 1
+new vertex.
+ @constant
+*/
 Mesh.TRIANGLE_FAN = 4;
+/**
+Primitive mode for rendering a triangle fan.  The first 3
+vertices make up the first triangle, and each additional
+triangle is made up of the last 2 vertices and 1
+new vertex.
+ @constant
+*/
 Mesh.TRIANGLE_STRIP = 5;
 
 /** A geometric mesh in the form of vertex buffer objects.
