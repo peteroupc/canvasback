@@ -208,8 +208,10 @@ MtlData._loadMtl=function(str){
  var nonnegInteger="(\\d+)"
  var oneNumLine=new RegExp("^(Ns|d|Tr|Ni|Ke)\\s+"+number+"\\s*$")
  var oneIntLine=new RegExp("^(illum)\\s+"+nonnegInteger+"\\s*$")
- var threeNumLine=new RegExp("^(Kd|Ka|Ks|Tf)\\s+"+number+"\\s+"+number
+ var threeNumLine=new RegExp("^(Tf)\\s+"+number+"\\s+"+number
    +"\\s+"+number+"\\s*$")
+ var threeOrFourNumLine=new RegExp("^(Kd|Ka|Ks)\\s+"+number+"\\s+"+number
+   +"\\s+"+number+"(?:\\s+"+number+")?\\s*$")
  var mapLine=new RegExp("^(map_Kd|map_bump|map_Ka|map_Ks)\\s+(.*?)\\s*$")
  var newmtlLine=new RegExp("^newmtl\\s+([^\\s]+)$")
  var faceStart=new RegExp("^f\\s+")
@@ -242,6 +244,15 @@ MtlData._loadMtl=function(str){
     var name=e[1];
     currentMat={};
     materials.push({name:name, data: currentMat});
+    continue;
+  }
+  e=threeOrFourNumLine.exec(line)
+  if(e){
+    if(e[5]){
+      currentMat[e[1]]=[parseFloat(e[2]),parseFloat(e[3]),parseFloat(e[4]),parseFloat(e[5])];
+    } else {
+      currentMat[e[1]]=[parseFloat(e[2]),parseFloat(e[3]),parseFloat(e[4])];
+    }
     continue;
   }
   e=threeNumLine.exec(line)
@@ -289,8 +300,10 @@ ObjData._recalcNormalsSingleFace=function(vertices,indices,stride){
     var v1=indices[i]*stride
     var vPrev=(i==0) ? indices[indices.length-1] : indices[i-1]*stride
     var vNext=(i==indices.length-1) ? indices[0]*stride : indices[i+1]*stride
-    var n1=[vertices[vPrev]-vertices[vNext],vertices[vPrev+1]-vertices[vNext+1],vertices[vPrev+2]-vertices[vNext+2]]
-    var n2=[vertices[v1]-vertices[vNext],vertices[v1+1]-vertices[vNext+1],vertices[v1+2]-vertices[vNext+2]]
+    var n1=[vertices[vPrev]-vertices[vNext],vertices[vPrev+1]-vertices[vNext+1],
+       vertices[vPrev+2]-vertices[vNext+2]]
+    var n2=[vertices[v1]-vertices[vNext],vertices[v1+1]-vertices[vNext+1],
+       vertices[v1+2]-vertices[vNext+2]]
     // cross multiply n1 and n2
     var x=n1[1]*n2[2]-n1[2]*n2[1]
     var y=n1[2]*n2[0]-n1[0]*n2[2]

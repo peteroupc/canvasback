@@ -104,27 +104,20 @@ getPromiseResults:function(promises,
   }
  });
 },
-createCube:function(){
+createCube:function(xSize,ySize,zSize){
  // Position X, Y, Z, normal NX, NY, NZ, texture U, V
- var vertices=[-1.0,-1.0,1.0,1.0,0.0,0.0,1.0,1.0,
- -1.0,1.0,1.0,1.0,0.0,0.0,1.0,0.0,
- -1.0,1.0,-1.0,1.0,0.0,0.0,0.0,0.0,
- -1.0,-1.0,-1.0,1.0,0.0,0.0,0.0,1.0,
- 1.0,-1.0,-1.0,-1.0,0.0,0.0,1.0,1.0,
- 1.0,1.0,-1.0,-1.0,0.0,0.0,1.0,0.0,
- 1.0,1.0,1.0,-1.0,0.0,0.0,0.0,0.0,
- 1.0,-1.0,1.0,-1.0,0.0,0.0,0.0,1.0,
- 1.0,-1.0,-1.0,0.0,1.0,0.0,1.0,1.0,
- 1.0,-1.0,1.0,0.0,1.0,0.0,1.0,0.0,
- -1.0,-1.0,1.0,0.0,1.0,0.0,0.0,0.0,
- -1.0,-1.0,-1.0,0.0,1.0,0.0,0.0,1.0,
- 1.0,1.0,1.0,0.0,-1.0,0.0,1.0,1.0,
- 1.0,1.0,-1.0,0.0,-1.0,0.0,1.0,0.0,
- -1.0,1.0,-1.0,0.0,-1.0,0.0,0.0,0.0,
- -1.0,1.0,1.0,0.0,-1.0,0.0,0.0,1.0,
- -1.0,-1.0,-1.0,0.0,0.0,1.0,1.0,1.0,
- -1.0,1.0,-1.0,0.0,0.0,1.0,1.0,0.0,
- 1.0,1.0,-1.0,0.0,0.0,1.0,0.0,0.0,1.0,-1.0,-1.0,0.0,0.0,1.0,0.0,1.0,1.0,-1.0,1.0,0.0,0.0,-1.0,1.0,1.0,1.0,1.0,1.0,0.0,0.0,-1.0,1.0,0.0,-1.0,1.0,1.0,0.0,0.0,-1.0,0.0,0.0,-1.0,-1.0,1.0,0.0,0.0,-1.0,0.0,1.0]
+ xSize/=2.0;
+ ySize/=2.0;
+ zSize/=2.0;
+ var vertices=[
+ -xSize,-ySize,zSize,1.0,0.0,0.0,1.0,1.0,
+ -xSize,ySize,zSize,1.0,0.0,0.0,1.0,0.0,
+ -xSize,ySize,-zSize,1.0,0.0,0.0,0.0,0.0,
+ -xSize,-ySize,-zSize,1.0,0.0,0.0,0.0,1.0,
+ xSize,-ySize,-zSize,-1.0,0.0,0.0,1.0,1.0,
+ xSize,ySize,-zSize,-1.0,0.0,0.0,1.0,0.0,
+ xSize,ySize,zSize,-1.0,0.0,0.0,0.0,0.0,
+ xSize,-ySize,zSize,-1.0,0.0,0.0,0.0,1.0,xSize,-ySize,-zSize,0.0,1.0,0.0,1.0,1.0,xSize,-ySize,zSize,0.0,1.0,0.0,1.0,0.0,-xSize,-ySize,zSize,0.0,1.0,0.0,0.0,0.0,-xSize,-ySize,-zSize,0.0,1.0,0.0,0.0,1.0,xSize,ySize,zSize,0.0,-1.0,0.0,1.0,1.0,xSize,ySize,-zSize,0.0,-1.0,0.0,1.0,0.0,-xSize,ySize,-zSize,0.0,-1.0,0.0,0.0,0.0,-xSize,ySize,zSize,0.0,-1.0,0.0,0.0,1.0,-xSize,-ySize,-zSize,0.0,0.0,1.0,1.0,1.0,-xSize,ySize,-zSize,0.0,0.0,1.0,1.0,0.0,xSize,ySize,-zSize,0.0,0.0,1.0,0.0,0.0,xSize,-ySize,-zSize,0.0,0.0,1.0,0.0,1.0,xSize,-ySize,zSize,0.0,0.0,-1.0,1.0,1.0,xSize,ySize,zSize,0.0,0.0,-1.0,1.0,0.0,-xSize,ySize,zSize,0.0,0.0,-1.0,0.0,0.0,-xSize,-ySize,zSize,0.0,0.0,-1.0,0.0,1.0]
  var faces=[0,1,2,0,2,3,4,5,6,4,6,7,8,9,10,8,10,11,12,
  13,14,12,14,15,16,17,18,16,18,19,20,21,22,20,22,23]
  return new Mesh(vertices,faces,Mesh.NORMALS_BIT | Mesh.TEXCOORDS_BIT);
@@ -699,10 +692,13 @@ function LightSource(position, ambient, diffuse, specular) {
  this.specular=specular||[1,1,1];
 };
 
+/** A collection of light sources. */
 function Lights(){
  this.lights=[new LightSource()];
  this.sceneAmbient=[0.2,0.2,0.2];
 }
+/** Maximum number of lights supported
+   by the default shader program. */
 Lights.MAX_LIGHTS = 3;
 Lights._createLight=function(index, position, diffuse, specular,directional){
  var lightPosition=position ? [position[0],position[1],position[2],
@@ -733,6 +729,8 @@ Lights.prototype.addPointLight=function(position, diffuse, specular){
  return this;
 }
 
+/** Sets parameters for a shader program based on
+ the information in this light source object. */
 Lights.prototype.bind=function(program){
  if(!program)return this;
  var uniforms={};
@@ -832,11 +830,14 @@ MaterialShade.prototype.bind=function(program){
 }
 
 /**
-* Specifies the triangles or lines that make up a geometric shape.
-* @param {Array<Number>} An array that contains data on each vertex of the mesh.
+* Specifies the triangles and lines that make up a geometric shape.
+* @param {Array<Number>} An array that contains data on each
+* vertex of the mesh.
 * Each vertex is made up of the same number of elements, as defined in
-* format.
-* @param {Array<Number>} An array of vertex indices.
+* format. If null or omitted, creates an initially empty mesh.
+* @param {Array<Number>} An array of vertex indices.  Each trio of
+* indices specifies a separate triangle.
+* If null or omitted, creates an initially empty mesh.
 * @param {Number} A set of bit flags depending on the kind of data
 * each vertex contains.  Each vertex contains 3 elements plus:
 *  - 3 more elements if Mesh.NORMALS_BIT is set, plus
@@ -989,7 +990,7 @@ Mesh._recalcNormals=function(vertices,faces,stride,offset){
  Mesh.prototype.toWireFrame=function(){
   var mesh=new Mesh();
   for(var i=0;i<this.subMeshes.length;i++){
-   mesh.push(this.subMeshes[i].toWireFrame());
+   mesh.subMeshes.push(this.subMeshes[i].toWireFrame());
   }
   return mesh;
  }
@@ -1115,6 +1116,19 @@ function SubMesh(vertices,faces,format){
      (this.vertices.length-this.startIndex)%(this.stride*3)==0){
    var index=(this.vertices.length/this.stride)-3;
    this.tris.push(index,index+1,index+2);
+  } else if(this.builderMode==Mesh.LINES &&
+     (this.vertices.length-this.startIndex)%(this.stride*2)==0){
+   var index=(this.vertices.length/this.stride)-2;
+   this.tris.push(index,index+1);
+  } else if(this.builderMode==Mesh.TRIANGLE_FAN &&
+     (this.vertices.length-this.startIndex)>=2){
+   var index=(this.vertices.length/this.stride)-2;
+   var firstIndex=(this.startIndex/this.stride);
+   this.tris.push(firstIndex,index,index+1);
+  } else if(this.builderMode==Mesh.TRIANGLE_STRIP &&
+     (this.vertices.length-this.startIndex)>=2){
+   var index=(this.vertices.length/this.stride)-3;
+   this.tris.push(index,index+1,index+2);
   }
   return this;
  }
@@ -1194,8 +1208,10 @@ Mesh.TRIANGLES = 0;
 Mesh.QUAD_STRIP = 1;
 Mesh.QUADS = 2;
 Mesh.LINES = 3;
+Mesh.TRIANGLE_FAN = 4;
+Mesh.TRIANGLE_STRIP = 5;
 
-/** A geometric mesh in the form of a vertex buffer object. */
+/** A geometric mesh in the form of vertex buffer objects. */
 function BufferedMesh(mesh, context){
  this.subMeshes=[];
  for(var i=0;i<mesh.subMeshes.length;i++){
@@ -1223,9 +1239,9 @@ BufferedMesh.prototype.draw=function(program){
 /**
 * Deletes the vertex and index buffers associated with this object.
 */
-BufferedMesh.prototype.unload=function(program){
+BufferedMesh.prototype.dispose=function(program){
  for(var i=0;i<this.subMeshes;i++){
-  this.subMeshes[i].unload(program);
+  this.subMeshes[i].dispose(program);
  }
 }
 BufferedMesh._vertexAttrib=function(context, attrib, size, type, stride, offset){
@@ -1262,7 +1278,7 @@ function BufferedSubMesh(mesh, context){
   this.format=mesh.attributeBits;
   this.context=context;
 }
-BufferedSubMesh.prototype.unload=function(){
+BufferedSubMesh.prototype.dispose=function(){
  if(this.verts!=null)
   this.context.deleteBuffer(this.verts);
  if(this.faces!=null)
@@ -1273,7 +1289,7 @@ BufferedSubMesh.prototype.unload=function(){
 BufferedSubMesh.prototype.bind=function(program){
   var context=program.getContext();
   if(this.verts==null || this.faces==null){
-   throw new Error("mesh buffer unloaded");
+   throw new Error("mesh buffer disposed");
   }
   if(context!=this.context){
    throw new Error("can't bind mesh: context mismatch");
@@ -1306,7 +1322,7 @@ BufferedSubMesh.prototype.bind=function(program){
 BufferedSubMesh.prototype.draw=function(program){
   var context=program.getContext();
   if(this.verts==null || this.faces==null){
-   throw new Error("mesh buffer unloaded");
+   throw new Error("mesh buffer disposed");
   }
   if(context!=this.context){
    throw new Error("can't bind mesh: context mismatch");
@@ -1743,7 +1759,7 @@ MultiShape.prototype.add=function(shape){
 }
 
 /** An object that associates a geometric mesh with
-  material data and other drawing parameters. */
+  material data and a transformation matrix. */
 function Shape(mesh){
   if(mesh==null)throw new Error("mesh is null");
   this.mesh=mesh;
@@ -1753,7 +1769,6 @@ function Shape(mesh){
   this.angle=0;
   this.position=[0,0,0];
   this.rotation=[0,0,0];
-  this.uniforms=[];
   this._matrixDirty=true;
   this._invTransModel3=GLMath.mat3identity();
   this.matrix=GLMath.mat4identity();
