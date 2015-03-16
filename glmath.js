@@ -7,7 +7,7 @@ If you like this, you should donate to Peter O.
 at: http://upokecenter.dreamhosters.com/articles/donate-now-2/
 */
 (function (g,f) {
-	if (typeof define=="function" && define.amd) {
+	if (typeof define=="function" && define["amd"]) {
 		define([ "exports" ], f);
 	} else if (typeof exports=="object") {
 		f(exports);

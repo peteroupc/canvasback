@@ -5,7 +5,7 @@
 // Note by Peter O., 2013-03-09: This file was taken
 // from https://github.com/ondras/promise/.
 (function (root, factory) {
-	if (typeof define === "function" && define.amd) {
+	if (typeof define === "function" && define["amd"]) {
 		define([ "exports" ], factory);
 	} else if (typeof exports === "object") {
 		factory(exports);
