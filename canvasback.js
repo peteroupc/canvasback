@@ -203,7 +203,7 @@ CanvasBackground.prototype.drawBack=function(){
  if(this.use3d){
   var rgb=this.constructor.hls2rgb(this.hls);
   var uniformValues={};
-  this.cubeMesh=GLUtil.createCube(2,2,2);
+  this.cubeMesh=GLUtil.createBox(2,2,2);
   this.sphereMesh=GLUtil.createSphere();
   var amb=8;
   this.scene=new Scene3D(this.context)
