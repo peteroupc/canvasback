@@ -198,6 +198,21 @@ CanvasBackground.prototype["setColor"]=function(color){
  this.hls=this.constructor.rgb2hls(rgb);
  this.drawBack();
 }
+
+// Generate a composite mesh of a cylinder and two disks
+/** @private */
+CanvasBackground._closedCylinder=function(base,top,height,slices,stacks){
+ var cylinder=GLUtil.createCylinder(base,top,height,slices,stacks);
+ var base=GLUtil.createDisk(0,base,slices,2,true);
+ var top=GLUtil.createDisk(0,top,slices,2,false);
+ // move the top disk to the top of the cylinder
+ top.transform(GLMath.mat4translated(0,0,height));
+ // merge the base and the top
+ return cylinder.merge(base).merge(top)
+   // and move the cylinder to the center
+   .transform(GLMath.mat4translated(0,0,-height*0.5));
+}
+
 CanvasBackground.prototype.drawBack=function(){
  document.body.style.backgroundColor=this.constructor.hls2hex(this.hls);
  if(this.use3d){
@@ -205,6 +220,8 @@ CanvasBackground.prototype.drawBack=function(){
   var uniformValues={};
   this.cubeMesh=GLUtil.createBox(2,2,2);
   this.sphereMesh=GLUtil.createSphere();
+  this.torusMesh=GLUtil.createTorus(0.5,1);
+  this.cylinderMesh=CanvasBackground._closedCylinder(1,1,2);
   var amb=8;
   this.scene=new Scene3D(this.context)
     .setDirectionalLight(0, [0,0,-1])
@@ -234,8 +251,8 @@ CanvasBackground.prototype.drawOne=function(){
   var x=(this.constructor.rand(2000)/1000.0)-1.0;
   var y=(this.constructor.rand(2000)/1000.0)-1.0;
   var z=(this.constructor.rand(60))/60.0;
-  var mesh=(this.constructor.rand(2)==0) ?
-    this.cubeMesh : this.sphereMesh;
+  var mesh=[this.cubeMesh,this.sphereMesh,
+    this.torusMesh,this.cylinderMesh][this.constructor.rand(4)];
   var radius=(16+this.constructor.rand(100))/1000.0;
   var rgb=this.constructor.hls2rgb(newhls);
   rgb[0]/=255
