@@ -259,13 +259,13 @@ CanvasBackground.prototype.drawOne=function(){
   rgb[1]/=255
   rgb[2]/=255
    var angle=this.constructor.rand(160);
-   var vector=[
+   var vector=GLMath.quatFromPitchYawRoll(
      (this.constructor.rand(360)),
      (this.constructor.rand(360)),
-     (this.constructor.rand(360))];
+     (this.constructor.rand(360)));
    var shape=new Shape(mesh)
     .setScale(radius,radius,radius)
-    .setRotation(vector)
+    .setQuaternion(vector)
     .setPosition(x,y,z)
     .setColor(rgb);
    this.scene.addShape(shape);
