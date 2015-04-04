@@ -249,7 +249,7 @@ CanvasBackground.prototype.drawOne=function(){
      (this.constructor.rand(360)),
      (this.constructor.rand(360)),
      (this.constructor.rand(360)));
-   var shape=new Shape(mesh)
+   var shape=scene.makeShape(mesh)
     .setScale(radius,radius,radius)
     .setQuaternion(vector)
     .setPosition(x,y,z)
