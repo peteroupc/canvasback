@@ -192,10 +192,10 @@ CanvasBackground.prototype.start=function(){
  GLUtil.renderLoop(this.animate.bind(this));
 }
 CanvasBackground.prototype["setColor"]=function(color){
- var rgb=GLUtil["colorToRgba"](color);
+ var rgb=GLUtil["toGLColor"](color)
  if(!rgb)throw new Error("invalid color parameter");
- this.color=[rgb[0],rgb[1],rgb[2]];
- this.hls=this.constructor.rgb2hls(rgb);
+ this.color=[rgb[0]*255,rgb[1]*255,rgb[2]*255];
+ this.hls=this.constructor.rgb2hls(this.color);
  this.drawBack();
 }
 
@@ -249,7 +249,7 @@ CanvasBackground.prototype.drawOne=function(){
      (this.constructor.rand(360)),
      (this.constructor.rand(360)),
      (this.constructor.rand(360)));
-   var shape=scene.makeShape(mesh)
+   var shape=this.scene.makeShape(mesh)
     .setScale(radius,radius,radius)
     .setQuaternion(vector)
     .setPosition(x,y,z)
