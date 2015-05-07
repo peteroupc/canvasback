@@ -7,8 +7,9 @@ If you like this software, consider donating to me at this link: [http://upokece
 
 ----
 
-A JavaScript that displays a canvas-based background that draws boxes in about the same
-color as the background color.   If WebGL is supported, the boxes will be in 3D; otherwise they will
+A JavaScript that displays a canvas-based background that draws shapes
+in about the same color as the background color.   If WebGL is
+supported, the shapes will be in 3D; otherwise they will
 be simple rectangles.
 
 To use, include jQuery and the "canvasback.js" script in your
